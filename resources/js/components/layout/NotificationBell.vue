@@ -71,12 +71,32 @@ function titleFor(type) {
         'message.replied': 'Message replied',
         'message.resolved': 'Message resolved',
         'message.action_taken': 'Message action taken',
+        'insight.analytics.overview': 'Insights: Overview refreshed',
+        'insight.analytics.cmgr': 'Insights: CMGR recalculated',
+        'insight.analytics.growth': 'Insights: Growth metrics updated',
+        'insight.analytics.forecast': 'Insights: Forecast updated',
+        'insight.analytics.runway': 'Insights: Runway updated',
+        'insight.analytics.anomalies': 'Insights: Anomaly scan complete',
+        'insight.analytics.ar_health': 'Insights: AR health updated',
+        'insight.report.profit_loss': 'Insights: Profit & Loss generated',
+        'insight.report.tax_summary': 'Insights: Tax summary generated',
+        'insight.report.ar_aging': 'Insights: AR aging generated',
+        'insight.security.audit': 'Insights: Security audit completed',
     };
 
     return labels[type] ?? type;
 }
 
 function subtitleFor(item) {
+    if (String(item.type).startsWith('insight.') && item.payload?.scope) {
+        if (item.payload?.generated_at) {
+            const time = new Date(item.payload.generated_at).toLocaleTimeString();
+            return `${item.payload.scope} stream at ${time}`;
+        }
+
+        return `${item.payload.scope} stream updated.`;
+    }
+
     if (item.payload?.subject) {
         return item.payload.subject;
     }

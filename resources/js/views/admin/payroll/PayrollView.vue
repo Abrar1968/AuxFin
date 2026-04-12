@@ -28,7 +28,8 @@
                         <td class="p-3">{{ row.total_deductions }}</td>
                         <td class="p-3 font-semibold">{{ row.net_payable }}</td>
                         <td class="p-3">{{ row.status }}</td>
-                        <td class="p-3 text-right">
+                        <td class="p-3 text-right space-x-3">
+                            <button class="text-xs font-semibold text-indigo-700" @click="openPayslip(row.id)">Payslip</button>
                             <button class="text-xs font-semibold text-blue-700" @click="markPaid(row.id)">Mark Paid</button>
                         </td>
                     </tr>
@@ -40,12 +41,14 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { PayrollService } from '../../../services/payroll.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { useToastStore } from '../../../stores/toast.store';
 
 const month = ref(new Date().toISOString().slice(0, 10));
 const rows = ref([]);
+const router = useRouter();
 const toast = useToastStore();
 
 async function load() {
@@ -75,5 +78,12 @@ async function markPaid(id) {
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to mark salary as paid.'));
     }
+}
+
+function openPayslip(id) {
+    router.push({
+        name: 'admin.payroll.payslip',
+        params: { id },
+    });
 }
 </script>

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\LoanController as AdminLoanController;
 use App\Http\Controllers\Admin\MessageController as AdminMessageController;
 use App\Http\Controllers\Admin\PayrollController as AdminPayrollController;
 use App\Http\Controllers\Admin\ProjectController as AdminProjectController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Analytics\AnomalyController;
 use App\Http\Controllers\Analytics\ForecastController;
@@ -63,6 +64,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('assets/{id}/depreciate', [AdminAssetController::class, 'depreciate']);
 
         Route::get('payroll/{month}', [AdminPayrollController::class, 'index']);
+        Route::get('payroll/{id}/payslip', [AdminPayrollController::class, 'showPayslip']);
         Route::post('payroll/process', [AdminPayrollController::class, 'process']);
         Route::post('payroll/bulk-process', [AdminPayrollController::class, 'bulkProcess']);
         Route::put('payroll/{id}', [AdminPayrollController::class, 'update']);
@@ -83,6 +85,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::put('settings/late-policy', [AdminSettingsController::class, 'updateLatePolicy']);
         Route::get('settings/loan-policy', [AdminSettingsController::class, 'getLoanPolicy']);
         Route::put('settings/loan-policy', [AdminSettingsController::class, 'updateLoanPolicy']);
+        Route::get('settings/general', [AdminSettingsController::class, 'getGeneral']);
+        Route::put('settings/general', [AdminSettingsController::class, 'updateGeneral']);
+        Route::get('settings/tax-policy', [AdminSettingsController::class, 'getTaxPolicy']);
+        Route::put('settings/tax-policy', [AdminSettingsController::class, 'updateTaxPolicy']);
         Route::get('settings/holidays', [AdminSettingsController::class, 'holidays']);
         Route::post('settings/holidays', [AdminSettingsController::class, 'createHoliday']);
         Route::delete('settings/holidays/{id}', [AdminSettingsController::class, 'deleteHoliday']);
@@ -101,6 +107,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('analytics/burn-rate', [ForecastController::class, 'burnRate']);
         Route::get('analytics/ar-health', [AnomalyController::class, 'arHealth']);
         Route::get('analytics/growth', [GrowthController::class, 'index']);
+
+        Route::get('reports/profit-loss', [AdminReportController::class, 'profitLoss']);
+        Route::get('reports/tax-summary', [AdminReportController::class, 'taxSummary']);
+        Route::get('reports/ar-aging', [AdminReportController::class, 'arAging']);
     });
 
     Route::middleware(['employee', 'ownership'])->prefix('employee')->group(function () {

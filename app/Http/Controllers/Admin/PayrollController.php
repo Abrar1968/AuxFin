@@ -34,6 +34,15 @@ class PayrollController extends Controller
         return response()->json($rows);
     }
 
+    public function showPayslip(int $id): JsonResponse
+    {
+        $salaryMonth = SalaryMonth::query()
+            ->with(['employee.user', 'employee.department'])
+            ->findOrFail($id);
+
+        return response()->json($this->payrollService->buildPayslipPayload($salaryMonth));
+    }
+
     public function process(Request $request): JsonResponse
     {
         $payload = $request->validate([

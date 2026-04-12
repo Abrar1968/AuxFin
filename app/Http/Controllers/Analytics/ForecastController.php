@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Analytics;
 
+use App\Events\InsightStreamed;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Services\ForecastService;
@@ -9,6 +10,7 @@ use App\Services\SnapshotService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ForecastController extends Controller
 {
@@ -20,28 +22,48 @@ class ForecastController extends Controller
 
     public function forecast(): JsonResponse
     {
-        $today = now();
-        $items = Invoice::query()
-            ->whereNull('payment_completed_at')
-            ->get()
-            ->map(function ($invoice) use ($today) {
-                $age = Carbon::parse($invoice->due_date)->diffInDays($today, false);
+        $data = Cache::remember('analytics:forecast:cashflow', now()->addMinutes(10), function (): array {
+            $today = now();
+            $items = Invoice::query()
+                ->whereNull('payment_completed_at')
+                ->get()
+                ->map(function ($invoice) use ($today) {
+                    $age = Carbon::parse($invoice->due_date)->diffInDays($today, false);
 
-                return [
-                    'amount' => (float) $invoice->amount,
-                    'bucket' => $this->bucketFromAge($age),
-                ];
-            })
-            ->values()
-            ->all();
+                    return [
+                        'amount' => (float) $invoice->amount,
+                        'bucket' => $this->bucketFromAge($age),
+                    ];
+                })
+                ->values()
+                ->all();
 
-        return response()->json($this->forecastService->forecastCashFlow($items));
+            return $this->forecastService->forecastCashFlow($items);
+        });
+
+        event(new InsightStreamed('insight.analytics.forecast', [
+            'scope' => 'analytics',
+            'p10' => (float) ($data['p10'] ?? 0),
+            'p50' => (float) ($data['p50'] ?? 0),
+            'p90' => (float) ($data['p90'] ?? 0),
+            'generated_at' => now()->toIso8601String(),
+        ]));
+
+        return response()->json($data);
     }
 
     public function burnRate(Request $request): JsonResponse
     {
         $availableCash = (float) $request->query('available_cash', 0);
-        $runway = $this->snapshotService->calculateRunway($availableCash);
+        $cacheKey = sprintf('analytics:forecast:burn-rate:%s', number_format($availableCash, 2, '.', ''));
+        $runway = Cache::remember($cacheKey, now()->addMinutes(5), fn () => $this->snapshotService->calculateRunway($availableCash));
+
+        event(new InsightStreamed('insight.analytics.runway', [
+            'scope' => 'analytics',
+            'available_cash' => $availableCash,
+            'cash_runway_months' => (float) $runway,
+            'generated_at' => now()->toIso8601String(),
+        ]));
 
         return response()->json([
             'available_cash' => $availableCash,

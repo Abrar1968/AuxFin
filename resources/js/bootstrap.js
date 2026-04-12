@@ -42,11 +42,16 @@ window.EchoChat = createEchoClient({
 	cluster: import.meta.env.VITE_PUSHER_CHAT_APP_CLUSTER,
 });
 
-window.Echo = window.EchoMain ?? window.EchoNotifications ?? window.EchoChat ?? null;
+window.EchoInsights = createEchoClient({
+	key: import.meta.env.VITE_PUSHER_INSIGHTS_APP_KEY,
+	cluster: import.meta.env.VITE_PUSHER_INSIGHTS_APP_CLUSTER,
+});
+
+window.Echo = window.EchoMain ?? window.EchoNotifications ?? window.EchoChat ?? window.EchoInsights ?? null;
 
 window.configureEchoAuth = (authToken = null) => {
 	const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-	[window.EchoMain, window.EchoNotifications, window.EchoChat, window.Echo]
+	[window.EchoMain, window.EchoNotifications, window.EchoChat, window.EchoInsights, window.Echo]
 		.filter(Boolean)
 		.forEach((client) => {
 			client.connector.options.auth = { headers };

@@ -4,33 +4,12 @@
         <p class="text-sm text-slate-500 mt-1">Use your admin-issued passkey.</p>
 
         <form class="mt-6 space-y-4" @submit.prevent="submit">
-            <label class="block">
-                <span class="text-sm font-semibold">Email</span>
-                <input
-                    v-model="form.email"
-                    type="email"
-                    required
-                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-[var(--color-primary)]"
-                >
-            </label>
+            <AppInput v-model="form.email" type="email" label="Email" placeholder="you@company.com" />
+            <AppInput v-model="form.passkey" type="password" label="Passkey" placeholder="Enter secure passkey" />
 
-            <label class="block">
-                <span class="text-sm font-semibold">Passkey</span>
-                <input
-                    v-model="form.passkey"
-                    type="password"
-                    required
-                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-[var(--color-primary)]"
-                >
-            </label>
-
-            <button
-                type="submit"
-                class="w-full rounded-lg py-2.5 text-white font-semibold bg-[image:var(--color-gradient)] disabled:opacity-60"
-                :disabled="auth.loading"
-            >
+            <AppButton type="submit" class="w-full" :loading="auth.loading">
                 {{ auth.loading ? 'Signing In...' : 'Sign In' }}
-            </button>
+            </AppButton>
 
             <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
         </form>
@@ -40,6 +19,8 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AppButton from '../../components/ui/AppButton.vue';
+import AppInput from '../../components/ui/AppInput.vue';
 import { useAuthStore } from '../../stores/auth.store';
 
 const router = useRouter();

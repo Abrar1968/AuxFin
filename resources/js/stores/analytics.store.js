@@ -7,14 +7,18 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     const cmgr = ref(null);
     const forecast = ref(null);
     const anomalies = ref([]);
+    const arHealth = ref(null);
+    const burnRate = ref(null);
     const growth = ref(null);
 
-    async function fetchAll() {
-        const [o, c, f, a, g] = await Promise.all([
+    async function fetchAll(availableCash = 0) {
+        const [o, c, f, a, h, b, g] = await Promise.all([
             AnalyticsService.overview(),
             AnalyticsService.cmgr(),
             AnalyticsService.forecast(),
             AnalyticsService.anomalies(),
+            AnalyticsService.arHealth(),
+            AnalyticsService.burnRate(availableCash),
             AnalyticsService.growth(),
         ]);
 
@@ -22,8 +26,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         cmgr.value = c.data;
         forecast.value = f.data;
         anomalies.value = a.data;
+        arHealth.value = h.data;
+        burnRate.value = b.data;
         growth.value = g.data;
     }
 
-    return { overview, cmgr, forecast, anomalies, growth, fetchAll };
+    return { overview, cmgr, forecast, anomalies, arHealth, burnRate, growth, fetchAll };
 });

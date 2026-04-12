@@ -1,6 +1,44 @@
 <template>
     <section class="space-y-4">
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 class="font-bold">General System Settings</h3>
+            <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="saveGeneral">
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Company Name</label>
+                    <input v-model="general.company_name" required class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Company Email</label>
+                    <input v-model="general.company_email" type="email" required class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Currency</label>
+                    <input v-model="general.currency" required class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Timezone</label>
+                    <input v-model="general.timezone" required class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Available Cash (for runway)</label>
+                    <input v-model.number="general.available_cash" type="number" min="0" class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                </div>
+                <button class="md:col-span-2 rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold">Save General Settings</button>
+            </form>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 class="font-bold">Tax Policy</h3>
+            <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="saveTaxPolicy">
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Corporate Tax Rate (%)</label>
+                    <input v-model.number="taxPolicy.corporate_tax_rate" type="number" min="0" max="100" class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                </div>
+                <button class="md:col-span-2 rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold">Save Tax Policy</button>
+            </form>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white p-5">
             <h3 class="font-bold">Late Policy</h3>
             <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="savePolicy">
                 <div>
@@ -89,6 +127,18 @@ import { SettingsService } from '../../../services/settings.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { useToastStore } from '../../../stores/toast.store';
 
+const general = reactive({
+    company_name: 'AuxFin',
+    company_email: 'finance@auxfin.local',
+    currency: 'BDT',
+    timezone: 'Asia/Dhaka',
+    available_cash: 0,
+});
+
+const taxPolicy = reactive({
+    corporate_tax_rate: 30,
+});
+
 const policy = reactive({
     late_days_per_unit: 2,
     deduction_unit_type: 'full_day',
@@ -113,10 +163,60 @@ const holidays = ref([]);
 const toast = useToastStore();
 
 onMounted(async () => {
+    await loadGeneral();
+    await loadTaxPolicy();
     await loadPolicy();
     await loadLoanPolicy();
     await loadHolidays();
 });
+
+async function loadGeneral() {
+    try {
+        const response = await SettingsService.getGeneral();
+        Object.assign(general, response.data.general_settings ?? {});
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to load general settings.'));
+    }
+}
+
+async function saveGeneral() {
+    try {
+        await SettingsService.updateGeneral({
+            company_name: general.company_name,
+            company_email: general.company_email,
+            currency: general.currency,
+            timezone: general.timezone,
+            available_cash: Number(general.available_cash ?? 0),
+        });
+
+        toast.success('General settings saved.');
+        await loadGeneral();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to save general settings.'));
+    }
+}
+
+async function loadTaxPolicy() {
+    try {
+        const response = await SettingsService.getTaxPolicy();
+        Object.assign(taxPolicy, response.data.tax_policy ?? {});
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to load tax policy.'));
+    }
+}
+
+async function saveTaxPolicy() {
+    try {
+        await SettingsService.updateTaxPolicy({
+            corporate_tax_rate: Number(taxPolicy.corporate_tax_rate ?? 30),
+        });
+
+        toast.success('Tax policy saved.');
+        await loadTaxPolicy();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to save tax policy.'));
+    }
+}
 
 async function loadPolicy() {
     try {

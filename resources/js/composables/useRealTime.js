@@ -1,58 +1,87 @@
 import { useNotificationStore } from '../stores/notification.store';
 
 let adminChannel = null;
+let adminInsightsChannel = null;
 let employeeChannel = null;
+
+const ADMIN_EVENTS = [
+    'loan.applied',
+    'leave.applied',
+    'invoice.overdue',
+    'liability.due_soon',
+    'message.new',
+];
+
+const ADMIN_INSIGHT_EVENTS = [
+    'insight.analytics.overview',
+    'insight.analytics.cmgr',
+    'insight.analytics.growth',
+    'insight.analytics.forecast',
+    'insight.analytics.runway',
+    'insight.analytics.anomalies',
+    'insight.analytics.ar_health',
+    'insight.report.profit_loss',
+    'insight.report.tax_summary',
+    'insight.report.ar_aging',
+    'insight.security.audit',
+];
+
+const EMPLOYEE_EVENTS = [
+    'salary.processed',
+    'salary.paid',
+    'loan.approved',
+    'loan.rejected',
+    'leave.decision',
+    'message.replied',
+    'message.resolved',
+    'message.action_taken',
+];
 
 export function useRealTime() {
     const notifications = useNotificationStore();
 
     function subscribeAdmin(token = null) {
-        const echo = window.EchoNotifications || window.Echo || window.EchoMain;
-        if (!echo) return;
-
         configureAuth(token);
         unsubscribeAdmin();
 
-        adminChannel = echo.private('admin-broadcast');
+        const notificationsEcho = window.EchoNotifications || window.Echo || window.EchoMain;
+        if (notificationsEcho) {
+            adminChannel = notificationsEcho.private('admin-broadcast');
+            ADMIN_EVENTS.forEach((eventName) => bind(adminChannel, eventName));
+        }
 
-        bind(adminChannel, 'loan.applied');
-        bind(adminChannel, 'leave.applied');
-        bind(adminChannel, 'invoice.overdue');
-        bind(adminChannel, 'liability.due_soon');
-        bind(adminChannel, 'message.new');
+        const insightsEcho = window.EchoInsights;
+        if (insightsEcho) {
+            adminInsightsChannel = insightsEcho.private('admin-broadcast');
+            ADMIN_INSIGHT_EVENTS.forEach((eventName) => bind(adminInsightsChannel, eventName));
+        }
     }
 
     function unsubscribeAdmin() {
-        if (!adminChannel) {
-            return;
+        if (adminChannel) {
+            ADMIN_EVENTS.forEach((eventName) => unbind(adminChannel, eventName));
+            adminChannel = null;
         }
 
-        unbind(adminChannel, 'loan.applied');
-        unbind(adminChannel, 'leave.applied');
-        unbind(adminChannel, 'invoice.overdue');
-        unbind(adminChannel, 'liability.due_soon');
-        unbind(adminChannel, 'message.new');
-
-        adminChannel = null;
+        if (adminInsightsChannel) {
+            ADMIN_INSIGHT_EVENTS.forEach((eventName) => unbind(adminInsightsChannel, eventName));
+            adminInsightsChannel = null;
+        }
     }
 
     function subscribeEmployee(employeeId, token = null) {
-        const echo = window.EchoNotifications || window.Echo || window.EchoMain;
-        if (!echo || !employeeId) return;
+        if (!employeeId) return;
 
         configureAuth(token);
         unsubscribeEmployee();
 
-        employeeChannel = echo.private(`employee.${employeeId}`);
+        const echo = window.EchoNotifications || window.Echo || window.EchoMain;
+        if (!echo) {
+            return;
+        }
 
-        bind(employeeChannel, 'salary.processed');
-        bind(employeeChannel, 'salary.paid');
-        bind(employeeChannel, 'loan.approved');
-        bind(employeeChannel, 'loan.rejected');
-        bind(employeeChannel, 'leave.decision');
-        bind(employeeChannel, 'message.replied');
-        bind(employeeChannel, 'message.resolved');
-        bind(employeeChannel, 'message.action_taken');
+        employeeChannel = echo.private(`employee.${employeeId}`);
+        EMPLOYEE_EVENTS.forEach((eventName) => bind(employeeChannel, eventName));
     }
 
     function unsubscribeEmployee() {
@@ -60,14 +89,7 @@ export function useRealTime() {
             return;
         }
 
-        unbind(employeeChannel, 'salary.processed');
-        unbind(employeeChannel, 'salary.paid');
-        unbind(employeeChannel, 'loan.approved');
-        unbind(employeeChannel, 'loan.rejected');
-        unbind(employeeChannel, 'leave.decision');
-        unbind(employeeChannel, 'message.replied');
-        unbind(employeeChannel, 'message.resolved');
-        unbind(employeeChannel, 'message.action_taken');
+        EMPLOYEE_EVENTS.forEach((eventName) => unbind(employeeChannel, eventName));
 
         employeeChannel = null;
     }

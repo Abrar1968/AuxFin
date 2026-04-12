@@ -10,6 +10,47 @@ use Illuminate\Http\Request;
 
 class SettingsController extends Controller
 {
+    public function getGeneral(): JsonResponse
+    {
+        $defaults = [
+            'company_name' => 'AuxFin',
+            'company_email' => 'finance@auxfin.local',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'available_cash' => 0,
+        ];
+
+        $general = Setting::getValue('general_settings', $defaults);
+        if (! is_array($general)) {
+            $general = $defaults;
+        }
+
+        return response()->json([
+            'general_settings' => array_merge($defaults, $general),
+        ]);
+    }
+
+    public function updateGeneral(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'company_name' => ['required', 'string', 'max:200'],
+            'company_email' => ['required', 'email', 'max:200'],
+            'currency' => ['required', 'string', 'max:8'],
+            'timezone' => ['required', 'string', 'max:64'],
+            'available_cash' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        Setting::query()->updateOrCreate(
+            ['key' => 'general_settings'],
+            ['value' => $payload]
+        );
+
+        return response()->json([
+            'message' => 'General settings updated successfully.',
+            'general_settings' => $payload,
+        ]);
+    }
+
     public function getLatePolicy(): JsonResponse
     {
         $defaults = [
@@ -73,6 +114,39 @@ class SettingsController extends Controller
 
         return response()->json([
             'loan_policy' => array_merge($defaults, $policy),
+        ]);
+    }
+
+    public function getTaxPolicy(): JsonResponse
+    {
+        $defaults = [
+            'corporate_tax_rate' => 30,
+        ];
+
+        $policy = Setting::getValue('tax_policy', $defaults);
+        if (! is_array($policy)) {
+            $policy = $defaults;
+        }
+
+        return response()->json([
+            'tax_policy' => array_merge($defaults, $policy),
+        ]);
+    }
+
+    public function updateTaxPolicy(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'corporate_tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        Setting::query()->updateOrCreate(
+            ['key' => 'tax_policy'],
+            ['value' => $payload]
+        );
+
+        return response()->json([
+            'message' => 'Tax policy updated successfully.',
+            'tax_policy' => $payload,
         ]);
     }
 
