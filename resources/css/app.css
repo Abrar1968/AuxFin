@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.vue';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+:root {
+    --bg-base: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-muted: #eef2ff;
+    --bg-dark: #0f172a;
+    --color-primary: #2f6fed;
+    --color-secondary: #0ea5a6;
+    --color-gradient: linear-gradient(135deg, #2f6fed, #0ea5a6);
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --text-primary: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: radial-gradient(circle at 10% 10%, #eef4ff 0, #f8fafc 35%, #f5fbfb 100%);
+    color: var(--text-primary);
+}
+
+#app {
+    min-height: 100vh;
+}
