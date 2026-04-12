@@ -1,5 +1,5 @@
 <template>
-    <div class="rounded-xl border px-4 py-3 text-sm" :class="classes">
+    <div class="rounded-xl border px-4 py-3 text-sm shadow-sm" :class="classes">
         <slot>{{ message }}</slot>
     </div>
 </template>
@@ -14,10 +14,10 @@ const props = defineProps({
 
 const classes = computed(() => {
     const map = {
-        success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        warning: 'border-amber-200 bg-amber-50 text-amber-700',
-        error: 'border-rose-200 bg-rose-50 text-rose-700',
-        info: 'border-blue-200 bg-blue-50 text-blue-700',
+        success: 'border-emerald-200 bg-emerald-50/90 text-emerald-800',
+        warning: 'border-amber-200 bg-amber-50/90 text-amber-800',
+        error: 'border-rose-200 bg-rose-50/90 text-rose-800',
+        info: 'border-sky-200 bg-sky-50/90 text-sky-800',
     };
 
     return map[props.type] ?? map.info;

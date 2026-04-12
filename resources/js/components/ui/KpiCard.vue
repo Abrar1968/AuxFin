@@ -1,9 +1,9 @@
 <template>
-    <article class="fin-card p-5">
-        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ title }}</p>
-        <p class="mt-1 text-2xl font-bold text-slate-900">{{ value }}</p>
+    <article class="fin-card p-5 md:p-6">
+        <p class="text-xs font-semibold uppercase tracking-[0.11em] text-slate-500">{{ title }}</p>
+        <p class="mt-1 text-2xl font-black text-slate-900 md:text-[1.75rem]">{{ value }}</p>
 
-        <div class="mt-1 inline-flex items-center gap-1 text-xs font-semibold" :class="deltaType === 'up' ? 'text-emerald-600' : 'text-rose-600'">
+        <div class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold" :class="deltaType === 'up' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'">
             <span>{{ deltaType === 'up' ? '▲' : '▼' }}</span>
             <span>{{ delta }}</span>
         </div>

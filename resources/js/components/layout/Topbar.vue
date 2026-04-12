@@ -1,36 +1,36 @@
 <template>
-    <header class="sticky top-0 z-20 h-16 border-b border-(--border) bg-white/90 backdrop-blur">
+    <header class="sticky top-0 z-20 h-16 border-b border-sky-100/80 bg-white/70 backdrop-blur-xl">
         <div class="h-full flex items-center justify-between gap-3 px-4 md:px-6">
             <div class="flex min-w-0 items-center gap-3">
                 <button
                     type="button"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    class="fin-focus-ring inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200/80 bg-white/80 text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-white"
                     @click="$emit('toggle-sidebar')"
                 >
                     <span class="text-base">≡</span>
                 </button>
 
                 <div class="min-w-0">
-                    <p class="text-[11px] uppercase tracking-[0.12em] text-slate-500">FinERP Workspace</p>
+                    <p class="text-[11px] uppercase tracking-[0.12em] text-sky-700/80">FinERP Workspace</p>
                     <h2 class="truncate text-lg font-bold text-(--text-primary)">{{ title }}</h2>
                 </div>
             </div>
 
             <div class="flex items-center gap-3">
                 <NotificationBell />
-                <div class="hidden sm:flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-(image:--color-gradient) text-xs font-bold text-white">
+                <div class="hidden sm:flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/90 px-2 py-1 shadow-sm">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-(image:--color-gradient) text-xs font-bold text-white shadow-[0_6px_14px_rgba(2,132,199,.35)]">
                         {{ initials }}
                     </span>
                     <div class="pr-1">
                         <p class="text-xs font-semibold text-slate-800 leading-none">{{ auth.user?.name ?? 'Guest' }}</p>
-                        <p class="text-[11px] uppercase text-slate-500 mt-0.5">{{ auth.role ?? 'guest' }}</p>
+                        <p class="mt-0.5 text-[11px] uppercase text-sky-700/70">{{ auth.role ?? 'guest' }}</p>
                     </div>
                 </div>
 
                 <button
                     type="button"
-                    class="hidden sm:inline-flex rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                    class="hidden sm:inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:-translate-y-px hover:bg-sky-50"
                     @click="onLogout"
                 >
                     Logout

@@ -1,5 +1,5 @@
 <template>
-    <component :is="as" class="fin-card" :class="[padded ? 'p-5' : '', elevated ? 'fin-card-panel' : '']">
+    <component :is="as" class="fin-card fin-section-enter" :class="[padded ? 'p-5 md:p-6' : '', elevated ? 'fin-card-panel' : '']">
         <slot />
     </component>
 </template>

@@ -2,7 +2,7 @@
     <button
         :type="type"
         :disabled="disabled || loading"
-        class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition"
+        class="fin-focus-ring inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition duration-200"
         :class="classes"
     >
         <span v-if="loading" class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-r-transparent"></span>
@@ -24,9 +24,9 @@ const props = defineProps({
 
 const classes = computed(() => {
     const variants = {
-        primary: 'bg-[image:var(--color-gradient)] text-white hover:brightness-110 disabled:brightness-95',
-        secondary: 'border border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50',
-        danger: 'bg-rose-600 text-white hover:bg-rose-700',
+        primary: 'bg-[image:var(--color-gradient)] text-white shadow-[0_10px_24px_rgba(2,132,199,.35)] hover:-translate-y-px hover:brightness-110 disabled:brightness-95',
+        secondary: 'border border-sky-200 bg-white text-slate-700 shadow-sm hover:-translate-y-px hover:bg-sky-50',
+        danger: 'bg-rose-600 text-white shadow-[0_10px_24px_rgba(225,29,72,.32)] hover:-translate-y-px hover:bg-rose-700',
         ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
     };
 

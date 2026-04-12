@@ -17,8 +17,8 @@ abstract class EmployeeBroadcastEvent implements ShouldBroadcast
      * @param  array<int, string>|string|null  $connections
      */
     public function __construct(
-        public readonly int $employeeId,
-        public readonly array $payload = [],
+        public int $employeeId,
+        public array $payload = [],
         array|string|null $connections = ['pusher', 'pusher_notifications'],
     ) {
         $this->broadcastVia($connections);

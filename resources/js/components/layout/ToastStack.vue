@@ -5,7 +5,7 @@
                 <article
                     v-for="toast in toastStore.toasts"
                     :key="toast.id"
-                    class="pointer-events-auto rounded-xl border p-3 shadow-lg backdrop-blur-sm"
+                    class="pointer-events-auto rounded-xl border p-3 shadow-[0_16px_34px_rgba(2,24,47,.18)] backdrop-blur-md"
                     :class="colorClass(toast.type)"
                 >
                     <div class="flex items-start justify-between gap-3">
@@ -34,18 +34,18 @@ const toastStore = useToastStore();
 
 function colorClass(type) {
     return {
-        success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-        error: 'border-rose-200 bg-rose-50 text-rose-900',
-        warning: 'border-amber-200 bg-amber-50 text-amber-900',
-        info: 'border-blue-200 bg-blue-50 text-blue-900',
-    }[type] ?? 'border-slate-200 bg-white text-slate-900';
+        success: 'border-emerald-200 bg-emerald-50/95 text-emerald-900',
+        error: 'border-rose-200 bg-rose-50/95 text-rose-900',
+        warning: 'border-amber-200 bg-amber-50/95 text-amber-900',
+        info: 'border-sky-200 bg-sky-50/95 text-sky-900',
+    }[type] ?? 'border-slate-200 bg-white/95 text-slate-900';
 }
 </script>
 
 <style scoped>
 .toast-enter-active,
 .toast-leave-active {
-    transition: all 0.18s ease;
+    transition: all 0.24s ease;
 }
 
 .toast-enter-from,

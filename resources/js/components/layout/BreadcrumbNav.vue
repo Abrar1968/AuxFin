@@ -1,6 +1,6 @@
 <template>
-    <nav class="flex items-center gap-1 overflow-x-auto rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-xs text-slate-600">
-        <RouterLink to="/" class="whitespace-nowrap font-semibold text-slate-500 hover:text-slate-800">Home</RouterLink>
+    <nav class="fin-glass flex items-center gap-1 overflow-x-auto rounded-xl px-3 py-2 text-xs text-slate-600 shadow-sm">
+        <RouterLink to="/" class="whitespace-nowrap font-semibold text-sky-700/70 hover:text-sky-800">Home</RouterLink>
         <template v-for="(crumb, idx) in crumbs" :key="crumb.to + idx">
             <span class="text-slate-400">/</span>
             <RouterLink

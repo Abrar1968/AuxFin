@@ -2,13 +2,13 @@
     <div class="relative">
         <button
             type="button"
-            class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            class="fin-focus-ring relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-sky-200/80 bg-white/85 text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-white"
             @click="open = !open"
         >
             <span class="text-base">&#128276;</span>
             <span
                 v-if="notifications.unreadCount > 0"
-                class="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center"
+                class="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-900 shadow-[0_6px_12px_rgba(245,158,11,.45)]"
             >
                 {{ notifications.unreadCount > 99 ? '99+' : notifications.unreadCount }}
             </span>
@@ -16,13 +16,13 @@
 
         <div
             v-if="open"
-            class="absolute right-0 mt-2 w-88 max-w-[85vw] rounded-xl border border-slate-200 bg-white shadow-lg z-30"
+            class="fin-glass absolute right-0 z-30 mt-2 w-88 max-w-[85vw] rounded-xl border border-sky-100/80 shadow-[0_20px_44px_rgba(2,132,199,.16)]"
         >
-            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+            <div class="flex items-center justify-between gap-2 border-b border-sky-100 px-4 py-3">
                 <h4 class="text-sm font-semibold text-slate-900">Notifications</h4>
                 <button
                     type="button"
-                    class="text-xs font-semibold text-blue-700"
+                    class="text-xs font-semibold text-sky-700 hover:text-sky-900"
                     @click="notifications.markAllRead()"
                 >
                     Mark all read
@@ -33,8 +33,8 @@
                 <li
                     v-for="item in notifications.notifications"
                     :key="item.id"
-                    class="px-4 py-3 border-b border-slate-100 last:border-b-0"
-                    :class="item.read ? 'bg-white' : 'bg-blue-50/40'"
+                    class="border-b border-sky-100/70 px-4 py-3 last:border-b-0"
+                    :class="item.read ? 'bg-transparent' : 'bg-sky-50/60'"
                 >
                     <button type="button" class="w-full text-left" @click="notifications.markRead(item.id)">
                         <p class="text-sm font-semibold text-slate-800">{{ titleFor(item.type) }}</p>

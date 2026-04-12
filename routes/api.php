@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\EmployeeController as AdminEmployeeController;
 use App\Http\Controllers\Admin\AssetController as AdminAssetController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
+use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\ExpenseController as AdminExpenseController;
 use App\Http\Controllers\Admin\FinanceOverviewController as AdminFinanceOverviewController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
@@ -40,6 +41,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::apiResource('employees', AdminEmployeeController::class);
         Route::post('employees/{id}/reset-passkey', [AdminEmployeeController::class, 'resetPasskey']);
+        Route::apiResource('departments', AdminDepartmentController::class);
 
         Route::get('finance/overview', [AdminFinanceOverviewController::class, 'index']);
 

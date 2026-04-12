@@ -1,12 +1,12 @@
 <template>
     <label class="block space-y-1">
-        <span class="text-xs font-semibold uppercase tracking-wide text-slate-600">{{ label }}</span>
+        <span class="text-xs font-semibold uppercase tracking-[0.11em] text-slate-600">{{ label }}</span>
         <input
             :value="modelValue"
             :type="type"
             :placeholder="placeholder"
             :disabled="disabled"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="fin-focus-ring w-full rounded-xl border border-sky-200/80 bg-white/90 px-3 py-2.5 text-sm text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,.8)] outline-none transition duration-200 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
             @input="$emit('update:modelValue', $event.target.value)"
         >
     </label>

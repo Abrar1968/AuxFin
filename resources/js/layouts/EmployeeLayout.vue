@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen flex bg-(--bg-base)">
+    <div class="min-h-screen flex bg-(--bg-base) text-(--text-primary)">
         <Sidebar
             role="employee"
             :collapsed="sidebarCollapsed"
@@ -9,9 +9,11 @@
 
         <div class="flex-1 min-w-0 flex flex-col">
             <Topbar @toggle-sidebar="toggleSidebar" />
-            <main class="flex-1 p-4 md:p-6 overflow-y-auto space-y-4">
+            <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                <div class="mx-auto w-full max-w-[1400px] space-y-4 md:space-y-5 fin-section-enter">
                 <BreadcrumbNav />
                 <RouterView />
+                </div>
             </main>
         </div>
     </div>

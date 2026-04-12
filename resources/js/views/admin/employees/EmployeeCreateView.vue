@@ -46,7 +46,12 @@
                     </div>
 
                     <div>
-                        <AppInput v-model="form.department_id" type="number" label="Department ID (optional)" placeholder="1" />
+                        <AppSelect
+                            v-model="form.department_id"
+                            label="Department"
+                            :options="departmentOptions"
+                            :disabled="departmentsLoading"
+                        />
                         <p v-if="fieldErrors.department_id" class="mt-1 text-xs font-semibold text-rose-600">{{ fieldErrors.department_id }}</p>
                     </div>
                 </div>
@@ -175,7 +180,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppAlert from '../../../components/ui/AppAlert.vue';
 import AppButton from '../../../components/ui/AppButton.vue';
@@ -211,6 +216,16 @@ const fieldErrors = ref({});
 const showPasskeyModal = ref(false);
 const generatedPasskey = ref('');
 const createdEmployeeId = ref(null);
+const departments = ref([]);
+const departmentsLoading = ref(false);
+
+const departmentOptions = computed(() => [
+    { label: departmentsLoading.value ? 'Loading departments...' : 'No Department', value: '' },
+    ...departments.value.map((item) => ({
+        label: item.name,
+        value: String(item.id),
+    })),
+]);
 
 const form = reactive({
     name: '',
@@ -233,6 +248,24 @@ const form = reactive({
     working_days_per_week: '5',
     weekly_off_days: ['friday', 'saturday'],
 });
+
+onMounted(async () => {
+    await loadDepartments();
+});
+
+async function loadDepartments() {
+    departmentsLoading.value = true;
+
+    try {
+        const response = await EmployeeService.departments({ per_page: 100 });
+        departments.value = response.data?.data ?? [];
+    } catch {
+        departments.value = [];
+        toast.warning('Could not load departments. You can still create an employee without assigning one.');
+    } finally {
+        departmentsLoading.value = false;
+    }
+}
 
 async function submit() {
     fieldErrors.value = validateFields(form, {

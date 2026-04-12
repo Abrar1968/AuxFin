@@ -17,7 +17,7 @@ abstract class AdminBroadcastEvent implements ShouldBroadcast
      * @param  array<int, string>|string|null  $connections
      */
     public function __construct(
-        public readonly array $payload = [],
+        public array $payload = [],
         array|string|null $connections = ['pusher', 'pusher_notifications'],
     ) {
         $this->broadcastVia($connections);

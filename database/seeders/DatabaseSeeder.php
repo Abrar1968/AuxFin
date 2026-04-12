@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
             DemoEmployeesSeeder::class,
             Phase3DemoSeeder::class,
             Phase4LoanDemoSeeder::class,
+            Phase5OperationsDemoSeeder::class,
         ]);
     }
 }
