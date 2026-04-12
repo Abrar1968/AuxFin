@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Asset;
 use App\Models\Attendance;
 use App\Models\Client;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeMessage;
 use App\Models\Expense;
@@ -40,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $observer = AuditObserver::class;
 
         User::observe($observer);
+        Department::observe($observer);
         Employee::observe($observer);
         SalaryMonth::observe($observer);
         Loan::observe($observer);

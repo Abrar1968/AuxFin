@@ -47,7 +47,7 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => max(1, (int) env('SANCTUM_TOKEN_EXPIRATION', 480)),
 
     /*
     |--------------------------------------------------------------------------

@@ -36,7 +36,12 @@ class AuthController extends Controller
             default => ['employee'],
         };
 
-        $token = $user->createToken($user->createTokenName(), $abilities)->plainTextToken;
+        $tokenExpirationMinutes = max(1, (int) config('sanctum.expiration', 480));
+        $token = $user->createToken(
+            $user->createTokenName(),
+            $abilities,
+            now()->addMinutes($tokenExpirationMinutes)
+        )->plainTextToken;
 
         return response()->json([
             'token' => $token,

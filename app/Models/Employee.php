@@ -19,6 +19,14 @@ class Employee extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $hidden = [
+        'bank_account_number',
+    ];
+
+    protected $appends = [
+        'masked_bank_account',
+    ];
+
     protected $fillable = [
         'user_id',
         'employee_code',
