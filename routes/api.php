@@ -73,15 +73,24 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('payroll/{id}/mark-paid', [AdminPayrollController::class, 'markPaid']);
 
         Route::get('loans', [AdminLoanController::class, 'index']);
+        Route::post('loans', [AdminLoanController::class, 'store']);
         Route::get('loans/{id}', [AdminLoanController::class, 'show']);
+        Route::put('loans/{id}', [AdminLoanController::class, 'update']);
+        Route::delete('loans/{id}', [AdminLoanController::class, 'destroy']);
         Route::post('loans/{id}/approve', [AdminLoanController::class, 'approve']);
         Route::post('loans/{id}/reject', [AdminLoanController::class, 'reject']);
 
         Route::get('leaves', [AdminLeaveController::class, 'index']);
+        Route::post('leaves', [AdminLeaveController::class, 'store']);
+        Route::get('leaves/{id}', [AdminLeaveController::class, 'show']);
+        Route::put('leaves/{id}', [AdminLeaveController::class, 'update']);
+        Route::delete('leaves/{id}', [AdminLeaveController::class, 'destroy']);
         Route::post('leaves/{id}/decision', [AdminLeaveController::class, 'decision']);
 
         Route::get('attendance', [AdminAttendanceController::class, 'index']);
         Route::post('attendance', [AdminAttendanceController::class, 'upsert']);
+        Route::get('attendance/{id}', [AdminAttendanceController::class, 'show']);
+        Route::delete('attendance/{id}', [AdminAttendanceController::class, 'destroy']);
 
         Route::get('settings/late-policy', [AdminSettingsController::class, 'getLatePolicy']);
         Route::put('settings/late-policy', [AdminSettingsController::class, 'updateLatePolicy']);
@@ -96,8 +105,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::delete('settings/holidays/{id}', [AdminSettingsController::class, 'deleteHoliday']);
 
         Route::get('messages', [AdminMessageController::class, 'index']);
+        Route::post('messages', [AdminMessageController::class, 'store']);
         Route::post('messages/mark-all-read', [AdminMessageController::class, 'markAllRead']);
         Route::get('messages/{id}', [AdminMessageController::class, 'show']);
+        Route::delete('messages/{id}', [AdminMessageController::class, 'destroy']);
         Route::post('messages/{id}/reply', [AdminMessageController::class, 'reply']);
         Route::post('messages/{id}/resolve', [AdminMessageController::class, 'resolve']);
         Route::post('messages/{id}/reject', [AdminMessageController::class, 'reject']);

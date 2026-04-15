@@ -40,6 +40,8 @@ class SalaryController extends Controller
             ->whereDate('month', $monthDate)
             ->firstOrFail();
 
+        /** @var SalaryMonth $salaryMonth */
+
         return response()->json($this->payrollService->buildPayslipPayload($salaryMonth));
     }
 
@@ -54,6 +56,8 @@ class SalaryController extends Controller
             ->where('employee_id', $employee->id)
             ->whereDate('month', $monthDate)
             ->firstOrFail();
+
+        /** @var SalaryMonth $salaryMonth */
 
         $payload = $this->payrollService->buildPayslipPayload($salaryMonth);
 

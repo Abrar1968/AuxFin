@@ -2,7 +2,9 @@ import api from './api.service';
 
 export const MessageService = {
     adminList: (params = {}) => api.get('/admin/messages', { params }),
+    adminCreate: (payload) => api.post('/admin/messages', payload),
     adminShow: (id) => api.get(`/admin/messages/${id}`),
+    adminDelete: (id) => api.delete(`/admin/messages/${id}`),
     adminMarkAllRead: () => api.post('/admin/messages/mark-all-read'),
     adminReply: (id, payload) => api.post(`/admin/messages/${id}/reply`, payload),
     adminResolve: (id) => api.post(`/admin/messages/${id}/resolve`),

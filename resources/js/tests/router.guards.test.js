@@ -42,4 +42,18 @@ describe('router guards', () => {
         const result = await guard({ meta: { public: true }, path: '/login' });
         expect(result).toBe('/admin/dashboard');
     });
+
+    it('allows public login route when stored token is stale', async () => {
+        let guard;
+        const mockRouter = { beforeEach: (fn) => { guard = fn; } };
+        applyAuthGuards(mockRouter);
+
+        const auth = useAuthStore();
+        auth.token = 'stale-token';
+        auth.user = null;
+        auth.fetchMe = vi.fn().mockRejectedValue(new Error('Unauthorized'));
+
+        const result = await guard({ meta: { public: true }, path: '/login' });
+        expect(result).toBe(true);
+    });
 });

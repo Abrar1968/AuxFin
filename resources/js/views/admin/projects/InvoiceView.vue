@@ -44,7 +44,7 @@
                         <td class="p-3">{{ row.payment_completed_at ?? '-' }}</td>
                         <td class="p-3 text-right space-x-2">
                             <button class="text-xs font-semibold text-blue-700" @click="transition(row.id, 'sent')">Sent</button>
-                            <button class="text-xs font-semibold text-amber-700" @click="markPartial(row)">Partial</button>
+                            <button class="text-xs font-semibold text-amber-700" @click="openPartialModal(row)">Partial</button>
                             <button class="text-xs font-semibold text-emerald-700" @click="transition(row.id, 'paid')">Paid</button>
                             <button class="text-xs font-semibold text-rose-700" @click="remove(row.id)">Delete</button>
                         </td>
@@ -52,10 +52,30 @@
                 </tbody>
             </table>
         </article>
+
+        <AppModal v-model="showPartialModal" title="Record Partial Payment" size="sm">
+            <form class="grid gap-3" @submit.prevent="submitPartialPayment">
+                <input
+                    v-model="partialAmount"
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Received amount"
+                >
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="showPartialModal = false">Cancel</button>
+                    <button class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white">Save</button>
+                </div>
+            </form>
+        </AppModal>
     </section>
 </template>
 
 <script setup>
+import AppModal from '../../../components/ui/AppModal.vue';
 import { onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { FinanceService } from '../../../services/finance.service';
@@ -69,6 +89,9 @@ const toast = useToastStore();
 const project = ref(null);
 const summary = ref({});
 const rows = ref([]);
+const showPartialModal = ref(false);
+const partialInvoiceId = ref(null);
+const partialAmount = ref('');
 
 const form = reactive({
     invoice_number: '',
@@ -122,13 +145,19 @@ async function createInvoice() {
     }
 }
 
-async function markPartial(row) {
-    const amount = window.prompt('Enter received partial amount', row.partial_amount ?? '');
-    if (!amount) {
+function openPartialModal(row) {
+    partialInvoiceId.value = row.id;
+    partialAmount.value = row.partial_amount ? String(row.partial_amount) : '';
+    showPartialModal.value = true;
+}
+
+async function submitPartialPayment() {
+    if (!partialInvoiceId.value || !partialAmount.value) {
         return;
     }
 
-    await transition(row.id, 'partial', { partial_amount: Number(amount) });
+    await transition(partialInvoiceId.value, 'partial', { partial_amount: Number(partialAmount.value) });
+    showPartialModal.value = false;
 }
 
 async function transition(id, status, extra = {}) {

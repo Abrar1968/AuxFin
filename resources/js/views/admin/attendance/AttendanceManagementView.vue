@@ -53,6 +53,7 @@
                         <th class="text-left p-3">Check In</th>
                         <th class="text-left p-3">Check Out</th>
                         <th class="text-left p-3">Late Minutes</th>
+                        <th class="text-right p-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,15 +63,29 @@
                         <td class="p-3">{{ record.check_in ?? '-' }}</td>
                         <td class="p-3">{{ record.check_out ?? '-' }}</td>
                         <td class="p-3">{{ record.late_minutes ?? 0 }}</td>
+                        <td class="p-3 text-right space-x-3">
+                            <button class="text-xs font-semibold text-amber-700" @click="editRecord(record)">Edit</button>
+                            <button class="text-xs font-semibold text-rose-700" @click="openDeleteModal(record.id)">Delete</button>
+                        </td>
                     </tr>
                 </tbody>
             </table>
         </article>
+
+        <ConfirmModal
+            v-model="showDeleteModal"
+            title="Delete Attendance Record"
+            message="Are you sure you want to delete this attendance record? This action cannot be undone."
+            confirm-text="Delete Record"
+            tone="danger"
+            @confirm="confirmDeleteRecord"
+        />
     </section>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
+import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { AttendanceService } from '../../../services/attendance.service';
 import { EmployeeService } from '../../../services/employee.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
@@ -81,6 +96,8 @@ const employeeId = ref('');
 const month = ref(new Date().toISOString().slice(0, 10));
 const records = ref([]);
 const summary = ref(null);
+const showDeleteModal = ref(false);
+const deleteRecordId = ref(null);
 const toast = useToastStore();
 const form = reactive({
     date: new Date().toISOString().slice(0, 10),
@@ -141,6 +158,35 @@ async function saveRecord() {
         await load();
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to save attendance record.'));
+    }
+}
+
+function editRecord(record) {
+    form.date = record.date;
+    form.status = record.status;
+    form.late_minutes = record.late_minutes ?? '';
+    form.check_in = record.check_in ?? '';
+    form.check_out = record.check_out ?? '';
+}
+
+function openDeleteModal(id) {
+    deleteRecordId.value = id;
+    showDeleteModal.value = true;
+}
+
+async function confirmDeleteRecord() {
+    if (!deleteRecordId.value) {
+        return;
+    }
+
+    try {
+        await AttendanceService.adminDelete(deleteRecordId.value);
+        showDeleteModal.value = false;
+        deleteRecordId.value = null;
+        toast.success('Attendance record deleted.');
+        await load();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to delete attendance record.'));
     }
 }
 

@@ -4,12 +4,13 @@ use App\Models\SalaryMonth;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->seed(DatabaseSeeder::class);
+    Artisan::call('db:seed', ['--class' => DatabaseSeeder::class]);
 });
 
 test('admin frontend endpoints return populated seeded data', function () {

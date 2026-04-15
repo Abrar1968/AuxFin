@@ -183,8 +183,8 @@ class ReportService
             ->get();
 
         foreach ($invoices as $invoice) {
-            $dueDate = Carbon::parse($invoice->due_date);
-            $age = $dueDate->diffInDays($asOf, false);
+            $dueDate = Carbon::parse($invoice->due_date)->startOfDay();
+            $age = (int) $dueDate->diffInDays($asOf->copy()->startOfDay(), false);
             $bucket = $this->bucketFromAge($age);
 
             $outstanding = max(0, (float) $invoice->amount - (float) ($invoice->partial_amount ?? 0));

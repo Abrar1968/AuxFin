@@ -1,5 +1,38 @@
 <template>
     <section class="space-y-4">
+        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 class="font-bold">Create Message</h3>
+            <form class="mt-3 grid md:grid-cols-4 gap-3" @submit.prevent="createMessage">
+                <select v-model="compose.employee_id" required class="rounded-lg border border-slate-300 px-3 py-2">
+                    <option value="">Select employee</option>
+                    <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                        {{ employee.employee_code }} - {{ employee.user?.name }}
+                    </option>
+                </select>
+                <select v-model="compose.type" required class="rounded-lg border border-slate-300 px-3 py-2">
+                    <option value="general_hr">General HR</option>
+                    <option value="salary_query">Salary Query</option>
+                    <option value="loan_query">Loan Query</option>
+                    <option value="leave_clarification">Leave Clarification</option>
+                    <option value="late_appeal">Late Appeal</option>
+                    <option value="deduction_dispute">Deduction Dispute</option>
+                </select>
+                <input v-model="compose.subject" required class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Subject">
+                <select v-model="compose.priority" class="rounded-lg border border-slate-300 px-3 py-2">
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                </select>
+                <textarea
+                    v-model="compose.body"
+                    required
+                    rows="2"
+                    class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Message body"
+                ></textarea>
+                <button class="md:col-span-4 rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold">Send Message</button>
+            </form>
+        </article>
+
         <div class="flex flex-wrap items-end gap-3">
             <div>
                 <label class="text-xs font-semibold text-slate-600">Status</label>
@@ -66,6 +99,7 @@
                         <td class="p-3">{{ formatDateTime(msg.updated_at) }}</td>
                         <td class="p-3 text-right">
                             <button class="text-xs font-semibold text-blue-700" @click="openMessage(msg.id)">Open</button>
+                            <button class="ml-3 text-xs font-semibold text-rose-700" @click="openDeleteMessageModal(msg.id)">Delete</button>
                         </td>
                     </tr>
                     <tr v-if="rows.length === 0">
@@ -131,14 +165,43 @@
             <div class="flex flex-wrap gap-2">
                 <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="submitReply">Save Reply</button>
                 <button class="rounded-lg border border-emerald-300 text-emerald-700 px-4 py-2 text-sm font-semibold" @click="resolveSelected">Mark Resolved</button>
-                <button class="rounded-lg border border-rose-300 text-rose-700 px-4 py-2 text-sm font-semibold" @click="rejectSelected">Reject</button>
+                <button class="rounded-lg border border-rose-300 text-rose-700 px-4 py-2 text-sm font-semibold" @click="openRejectModal">Reject</button>
             </div>
         </article>
+
+        <AppModal v-model="showRejectModal" title="Reject Message" size="sm">
+            <form class="grid gap-3" @submit.prevent="submitRejectMessage">
+                <textarea
+                    v-model="rejectReason"
+                    required
+                    rows="3"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Enter rejection reason"
+                ></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="showRejectModal = false">Cancel</button>
+                    <button class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Reject</button>
+                </div>
+            </form>
+        </AppModal>
+
+        <ConfirmModal
+            v-model="showDeleteModal"
+            title="Delete Message"
+            message="Are you sure you want to delete this message?"
+            confirm-text="Delete Message"
+            tone="danger"
+            @confirm="confirmDeleteMessage"
+        />
     </section>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import AppModal from '../../../components/ui/AppModal.vue';
+import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
+import { EmployeeService } from '../../../services/employee.service';
 import { MessageService } from '../../../services/message.service';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useToastStore } from '../../../stores/toast.store';
@@ -150,10 +213,15 @@ const toast = useToastStore();
 const status = ref('');
 const type = ref('');
 const employeeId = ref(null);
+const employees = ref([]);
 const rows = ref([]);
 const selectedId = ref(null);
 const selected = ref(null);
 const unreadCount = ref(0);
+const showRejectModal = ref(false);
+const showDeleteModal = ref(false);
+const rejectReason = ref('');
+const deleteMessageId = ref(null);
 
 const reply = reactive({
     admin_reply: '',
@@ -161,11 +229,20 @@ const reply = reactive({
     action_taken: 'none',
 });
 
+const compose = reactive({
+    employee_id: '',
+    type: 'general_hr',
+    subject: '',
+    body: '',
+    priority: 'normal',
+});
+
 let adminChannel = null;
 
 const canTakeAction = computed(() => ['late_appeal', 'deduction_dispute'].includes(selected.value?.type ?? ''));
 
 onMounted(async () => {
+    await loadEmployees();
     await load();
     subscribeRealTime();
 });
@@ -176,6 +253,15 @@ onUnmounted(() => {
         adminChannel.stopListening('message.new');
     }
 });
+
+async function loadEmployees() {
+    try {
+        const response = await EmployeeService.list({ per_page: 200 });
+        employees.value = response.data.data ?? [];
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to load employees.'));
+    }
+}
 
 async function load() {
     try {
@@ -189,6 +275,29 @@ async function load() {
         unreadCount.value = Number(response.data.unread_count ?? 0);
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load messages.'));
+    }
+}
+
+async function createMessage() {
+    try {
+        await MessageService.adminCreate({
+            employee_id: Number(compose.employee_id),
+            type: compose.type,
+            subject: compose.subject,
+            body: compose.body,
+            priority: compose.priority,
+        });
+
+        compose.employee_id = '';
+        compose.type = 'general_hr';
+        compose.subject = '';
+        compose.body = '';
+        compose.priority = 'normal';
+
+        toast.success('Message created successfully.');
+        await load();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to create message.'));
     }
 }
 
@@ -244,22 +353,58 @@ async function resolveSelected() {
     }
 }
 
-async function rejectSelected() {
+function openRejectModal() {
     if (!selected.value) {
         return;
     }
 
-    const reason = window.prompt('Enter rejection reason');
-    if (!reason) {
+    rejectReason.value = '';
+    showRejectModal.value = true;
+}
+
+async function submitRejectMessage() {
+    if (!selected.value || !rejectReason.value.trim()) {
         return;
     }
 
     try {
-        await MessageService.adminReject(selected.value.id, { reason });
+        await MessageService.adminReject(selected.value.id, { reason: rejectReason.value });
+        showRejectModal.value = false;
         toast.success('Message rejected successfully.');
         await openMessage(selected.value.id);
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to reject message.'));
+    }
+}
+
+function openDeleteMessageModal(id) {
+    deleteMessageId.value = id;
+    showDeleteModal.value = true;
+}
+
+async function confirmDeleteMessage() {
+    if (!deleteMessageId.value) {
+        return;
+    }
+
+    try {
+        await MessageService.adminDelete(deleteMessageId.value);
+        showDeleteModal.value = false;
+        toast.success('Message deleted successfully.');
+
+        if (selectedId.value === deleteMessageId.value) {
+            selectedId.value = null;
+            selected.value = null;
+            reply.admin_reply = '';
+            reply.status = 'under_review';
+            reply.action_taken = 'none';
+        }
+
+        deleteMessageId.value = null;
+
+        await load();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to delete message.'));
     }
 }
 

@@ -72,7 +72,7 @@
                         <AppButton variant="secondary" :loading="busyReset" @click="resetPasskey">
                             Reset Passkey
                         </AppButton>
-                        <AppButton variant="danger" :loading="busyArchive" @click="archiveEmployee">
+                        <AppButton variant="danger" :loading="busyArchive" @click="openArchiveModal">
                             Archive Employee
                         </AppButton>
                     </div>
@@ -205,6 +205,16 @@
                 </div>
             </div>
         </template>
+
+        <ConfirmModal
+            v-model="showArchiveModal"
+            title="Archive Employee"
+            message="Archive this employee profile? The user login will be disabled."
+            confirm-text="Archive Employee"
+            tone="danger"
+            :loading="busyArchive"
+            @confirm="archiveEmployee"
+        />
     </section>
 </template>
 
@@ -215,6 +225,7 @@ import AppAlert from '../../../components/ui/AppAlert.vue';
 import AppButton from '../../../components/ui/AppButton.vue';
 import AppCard from '../../../components/ui/AppCard.vue';
 import AppTable from '../../../components/ui/AppTable.vue';
+import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner.vue';
 import StatusBadge from '../../../components/ui/StatusBadge.vue';
 import { EmployeeService } from '../../../services/employee.service';
@@ -238,6 +249,7 @@ const busyReset = ref(false);
 const busyArchive = ref(false);
 const errorMessage = ref('');
 const latestPasskey = ref('');
+const showArchiveModal = ref(false);
 
 const salaryColumns = [
     { key: 'month', label: 'Month' },
@@ -298,13 +310,12 @@ async function resetPasskey() {
     }
 }
 
+function openArchiveModal() {
+    showArchiveModal.value = true;
+}
+
 async function archiveEmployee() {
     if (!employee.value?.id) {
-        return;
-    }
-
-    const confirmed = window.confirm('Archive this employee profile? The user login will be disabled.');
-    if (!confirmed) {
         return;
     }
 
@@ -312,6 +323,7 @@ async function archiveEmployee() {
 
     try {
         await EmployeeService.remove(employee.value.id);
+        showArchiveModal.value = false;
         toast.success('Employee archived successfully.');
         router.push({ name: 'admin.employees' });
     } catch (error) {

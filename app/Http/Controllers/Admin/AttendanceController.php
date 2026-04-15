@@ -76,4 +76,23 @@ class AttendanceController extends Controller
             'record' => $record,
         ]);
     }
+
+    public function show(int $id): JsonResponse
+    {
+        $record = Attendance::query()
+            ->with(['employee.user', 'employee.department'])
+            ->findOrFail($id);
+
+        return response()->json($record);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $record = Attendance::query()->findOrFail($id);
+        $record->delete();
+
+        return response()->json([
+            'message' => 'Attendance record deleted successfully.',
+        ]);
+    }
 }

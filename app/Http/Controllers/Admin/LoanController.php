@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\Loan;
 use App\Services\LoanService;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +46,100 @@ class LoanController extends Controller
         return response()->json([
             'loan' => $loan,
             'repayment_schedule' => $loan->repayments,
+        ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'employee_id' => ['required', 'exists:employees,id'],
+            'amount_requested' => ['required', 'numeric', 'min:1'],
+            'reason' => ['required', 'string', 'min:3'],
+            'preferred_repayment_months' => ['nullable', 'integer', 'between:1,60'],
+        ]);
+
+        $employee = Employee::query()->findOrFail($payload['employee_id']);
+        $loan = $this->loanService->apply($employee, $payload);
+
+        $loan = Loan::query()
+            ->with(['employee.user', 'employee.department'])
+            ->withSum('repayments as total_repaid', 'amount_paid')
+            ->findOrFail($loan->id);
+
+        $loan = $this->appendLoanMetrics($loan);
+
+        return response()->json([
+            'message' => 'Loan created successfully.',
+            'loan' => $loan,
+        ], 201);
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $payload = $request->validate([
+            'amount_requested' => ['sometimes', 'numeric', 'min:1'],
+            'reason' => ['sometimes', 'string', 'min:3'],
+            'status' => ['sometimes', 'in:pending,rejected'],
+            'admin_note' => ['nullable', 'string'],
+        ]);
+
+        $loan = Loan::query()->withSum('repayments as total_repaid', 'amount_paid')->findOrFail($id);
+
+        if (in_array($loan->status, ['approved', 'active', 'completed'], true)) {
+            abort(422, 'Approved or active loans cannot be edited directly.');
+        }
+
+        $updates = [];
+
+        if (array_key_exists('amount_requested', $payload)) {
+            $updates['amount_requested'] = (float) $payload['amount_requested'];
+        }
+
+        if (array_key_exists('reason', $payload)) {
+            $updates['reason'] = $payload['reason'];
+        }
+
+        if (array_key_exists('admin_note', $payload)) {
+            $updates['admin_note'] = $payload['admin_note'];
+        }
+
+        if (array_key_exists('status', $payload)) {
+            $updates['status'] = $payload['status'];
+            if ($payload['status'] === 'pending') {
+                $updates['reviewed_by'] = null;
+                $updates['reviewed_at'] = null;
+            }
+        }
+
+        if (! empty($updates)) {
+            $loan->update($updates);
+        }
+
+        $loan = Loan::query()
+            ->with(['employee.user', 'employee.department'])
+            ->withSum('repayments as total_repaid', 'amount_paid')
+            ->findOrFail($loan->id);
+
+        $loan = $this->appendLoanMetrics($loan);
+
+        return response()->json([
+            'message' => 'Loan updated successfully.',
+            'loan' => $loan,
+        ]);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $loan = Loan::query()->findOrFail($id);
+
+        if (in_array($loan->status, ['approved', 'active', 'completed'], true)) {
+            abort(422, 'Approved, active, or completed loans cannot be deleted.');
+        }
+
+        $loan->delete();
+
+        return response()->json([
+            'message' => 'Loan deleted successfully.',
         ]);
     }
 

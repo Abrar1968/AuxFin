@@ -51,6 +51,54 @@ class MessageController extends Controller
         return response()->json($payload);
     }
 
+    public function store(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'employee_id' => ['required', 'exists:employees,id'],
+            'type' => ['required', 'in:late_appeal,deduction_dispute,leave_clarification,salary_query,loan_query,general_hr'],
+            'subject' => ['required', 'string', 'max:300'],
+            'body' => ['required', 'string', 'min:5'],
+            'reference_date' => ['nullable', 'date'],
+            'reference_month' => ['nullable', 'date'],
+            'priority' => ['nullable', 'in:normal,high'],
+            'status' => ['nullable', 'in:open,under_review,resolved,rejected'],
+            'admin_reply' => ['nullable', 'string', 'min:3'],
+            'action_taken' => ['nullable', 'in:none,deduction_reversed,mark_excused,salary_adjusted,noted'],
+        ]);
+
+        $status = $payload['status'] ?? 'open';
+        $hasAdminReply = ! empty($payload['admin_reply']);
+
+        $message = EmployeeMessage::query()->create([
+            'employee_id' => $payload['employee_id'],
+            'type' => $payload['type'],
+            'subject' => $payload['subject'],
+            'body' => $payload['body'],
+            'reference_date' => $payload['reference_date'] ?? null,
+            'reference_month' => $payload['reference_month'] ?? null,
+            'priority' => $payload['priority'] ?? 'normal',
+            'status' => $status,
+            'admin_reply' => $payload['admin_reply'] ?? null,
+            'action_taken' => $payload['action_taken'] ?? 'none',
+            'replied_by' => ($hasAdminReply || $status !== 'open') ? $request->user()->id : null,
+            'replied_at' => ($hasAdminReply || $status !== 'open') ? now() : null,
+            'resolved_at' => $status === 'resolved' ? now() : null,
+        ]);
+
+        event(new MessageReplied($message->employee_id, [
+            'message_id' => $message->id,
+            'status' => $message->status,
+            'action_taken' => $message->action_taken,
+        ]));
+
+        $this->markRead($message->id, (int) $request->user()->id);
+
+        return response()->json([
+            'message' => 'Message created successfully.',
+            'record' => $message->fresh(['employee.user', 'replier']),
+        ], 201);
+    }
+
     public function show(Request $request, int $id): JsonResponse
     {
         $message = EmployeeMessage::query()
@@ -177,6 +225,16 @@ class MessageController extends Controller
         }
 
         return response()->json(['message' => 'All messages marked as read.']);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $message = EmployeeMessage::query()->findOrFail($id);
+        $message->delete();
+
+        return response()->json([
+            'message' => 'Message deleted successfully.',
+        ]);
     }
 
     private function handleSystemAction(EmployeeMessage $message, string $action): void

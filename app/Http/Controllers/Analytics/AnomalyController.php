@@ -47,13 +47,13 @@ class AnomalyController extends Controller
     public function arHealth(): JsonResponse
     {
         $data = Cache::remember('analytics:anomalies:ar-health', now()->addMinutes(10), function (): array {
-            $today = now();
+            $today = now()->startOfDay();
 
             $items = Invoice::query()
                 ->whereNull('payment_completed_at')
                 ->get()
                 ->map(function ($invoice) use ($today) {
-                    $age = Carbon::parse($invoice->due_date)->diffInDays($today, false);
+                    $age = (int) Carbon::parse($invoice->due_date)->startOfDay()->diffInDays($today, false);
 
                     return [
                         'amount' => (float) $invoice->amount,

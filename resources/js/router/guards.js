@@ -4,20 +4,29 @@ export function applyAuthGuards(router) {
     router.beforeEach(async (to) => {
         const auth = useAuthStore();
 
+        if (to.meta.public) {
+            if (auth.token && !auth.user) {
+                try {
+                    await auth.fetchMe();
+                } catch {
+                    // Allow login page when token is stale/invalid.
+                    return true;
+                }
+            }
+
+            if (auth.token && auth.role) {
+                return auth.role === 'employee' ? '/portal/dashboard' : '/admin/dashboard';
+            }
+
+            return true;
+        }
+
         if (auth.token && !auth.user) {
             try {
                 await auth.fetchMe();
             } catch {
                 return '/login';
             }
-        }
-
-        if (to.meta.public) {
-            if (auth.token && auth.role) {
-                return auth.role === 'employee' ? '/portal/dashboard' : '/admin/dashboard';
-            }
-
-            return true;
         }
 
         if (to.meta.requiresAuth && !auth.token) {

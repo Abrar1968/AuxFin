@@ -34,6 +34,7 @@
                         <td class="p-3">{{ number(row.monthly_depreciation) }}</td>
                         <td class="p-3 capitalize">{{ row.status }}</td>
                         <td class="p-3 text-right space-x-3">
+                            <button class="text-xs font-semibold text-amber-700" @click="openEditModal(row)">Edit</button>
                             <button class="text-xs font-semibold text-blue-700" @click="depreciate(row.id)">Depreciate</button>
                             <button class="text-xs font-semibold text-rose-700" @click="remove(row.id)">Delete</button>
                         </td>
@@ -41,17 +42,40 @@
                 </tbody>
             </table>
         </article>
+
+        <AppModal v-model="showEditModal" title="Edit Asset" size="md">
+            <form class="grid gap-3" @submit.prevent="submitEditAsset">
+                <input v-model="editForm.name" required class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Asset name">
+                <input v-model="editForm.category" required class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Category">
+                <input v-model="editForm.purchase_cost" required type="number" min="0.01" step="0.01" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Purchase cost">
+                <input v-model="editForm.purchase_date" required type="date" class="rounded-lg border border-slate-300 px-3 py-2">
+                <input v-model="editForm.useful_life_months" required type="number" min="1" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Useful life months">
+                <select v-model="editForm.status" required class="rounded-lg border border-slate-300 px-3 py-2">
+                    <option value="active">Active</option>
+                    <option value="disposed">Disposed</option>
+                    <option value="fully_depreciated">Fully Depreciated</option>
+                </select>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="showEditModal = false">Cancel</button>
+                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save Changes</button>
+                </div>
+            </form>
+        </AppModal>
     </section>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
+import AppModal from '../../../components/ui/AppModal.vue';
 import { FinanceService } from '../../../services/finance.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { useToastStore } from '../../../stores/toast.store';
 
 const toast = useToastStore();
 const rows = ref([]);
+const showEditModal = ref(false);
+const editAssetId = ref(null);
 
 const form = reactive({
     name: '',
@@ -59,6 +83,14 @@ const form = reactive({
     purchase_cost: '',
     purchase_date: new Date().toISOString().slice(0, 10),
     useful_life_months: '36',
+});
+const editForm = reactive({
+    name: '',
+    category: '',
+    purchase_cost: '',
+    purchase_date: new Date().toISOString().slice(0, 10),
+    useful_life_months: '36',
+    status: 'active',
 });
 
 onMounted(load);
@@ -92,6 +124,40 @@ async function createAsset() {
         await load();
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to create asset.'));
+    }
+}
+
+function openEditModal(row) {
+    editAssetId.value = row.id;
+    editForm.name = row.name ?? '';
+    editForm.category = row.category ?? '';
+    editForm.purchase_cost = String(row.purchase_cost ?? '0');
+    editForm.purchase_date = row.purchase_date ?? new Date().toISOString().slice(0, 10);
+    editForm.useful_life_months = String(row.useful_life_months ?? '36');
+    editForm.status = row.status ?? 'active';
+    showEditModal.value = true;
+}
+
+async function submitEditAsset() {
+    if (!editAssetId.value) {
+        return;
+    }
+
+    try {
+        await FinanceService.updateAsset(editAssetId.value, {
+            name: editForm.name,
+            category: editForm.category,
+            purchase_cost: Number(editForm.purchase_cost),
+            purchase_date: editForm.purchase_date,
+            useful_life_months: Number(editForm.useful_life_months),
+            status: editForm.status,
+        });
+
+        showEditModal.value = false;
+        toast.success('Asset updated successfully.');
+        await load();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to update asset.'));
     }
 }
 

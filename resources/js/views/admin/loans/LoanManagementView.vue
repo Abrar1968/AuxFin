@@ -1,5 +1,42 @@
 <template>
     <section class="space-y-4">
+        <article class="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 class="font-bold">Create Loan Request</h3>
+            <form class="mt-3 grid md:grid-cols-4 gap-3" @submit.prevent="createLoan">
+                <select v-model="createForm.employee_id" required class="rounded-lg border border-slate-300 px-3 py-2">
+                    <option value="">Select employee</option>
+                    <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                        {{ employee.employee_code }} - {{ employee.user?.name }}
+                    </option>
+                </select>
+                <input
+                    v-model="createForm.amount_requested"
+                    required
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Requested amount"
+                >
+                <input
+                    v-model="createForm.preferred_repayment_months"
+                    type="number"
+                    min="1"
+                    max="60"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Preferred months (optional)"
+                >
+                <button class="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold">Create Loan</button>
+                <textarea
+                    v-model="createForm.reason"
+                    required
+                    rows="2"
+                    class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Reason"
+                ></textarea>
+            </form>
+        </article>
+
         <div class="flex flex-wrap items-end gap-3">
             <div>
                 <label class="text-xs font-semibold text-slate-600">Status</label>
@@ -45,22 +82,132 @@
                             <button
                                 v-if="loan.status === 'pending'"
                                 class="text-xs font-semibold text-emerald-700"
-                                @click="approve(loan)"
+                                @click="openApproveModal(loan)"
                             >
                                 Approve
                             </button>
                             <button
                                 v-if="loan.status === 'pending'"
                                 class="text-xs font-semibold text-rose-700"
-                                @click="reject(loan.id)"
+                                @click="openRejectModal(loan.id)"
                             >
                                 Reject
+                            </button>
+                            <button
+                                v-if="['pending', 'rejected'].includes(loan.status)"
+                                class="text-xs font-semibold text-amber-700"
+                                @click="openEditModal(loan)"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                v-if="['pending', 'rejected'].includes(loan.status)"
+                                class="text-xs font-semibold text-rose-700"
+                                @click="openDeleteLoanModal(loan.id)"
+                            >
+                                Delete
                             </button>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </article>
+
+        <AppModal v-model="showEditModal" title="Edit Loan Request" size="md">
+            <form class="grid gap-3" @submit.prevent="submitEditLoan">
+                <input
+                    v-model="editForm.amount_requested"
+                    required
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Requested amount"
+                >
+                <textarea
+                    v-model="editForm.reason"
+                    required
+                    rows="3"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Reason"
+                ></textarea>
+                <select v-model="editForm.status" required class="rounded-lg border border-slate-300 px-3 py-2">
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="showEditModal = false">Cancel</button>
+                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save Changes</button>
+                </div>
+            </form>
+        </AppModal>
+
+        <AppModal v-model="showApproveModal" title="Approve Loan" size="md">
+            <form class="grid gap-3" @submit.prevent="submitApproveLoan">
+                <input
+                    v-model="approveForm.amount_approved"
+                    required
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Approved amount"
+                >
+                <input
+                    v-model="approveForm.repayment_months"
+                    required
+                    type="number"
+                    min="1"
+                    max="60"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Repayment months"
+                >
+                <input
+                    v-model="approveForm.start_month"
+                    required
+                    type="date"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                >
+                <textarea
+                    v-model="approveForm.admin_note"
+                    rows="2"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Admin note (optional)"
+                ></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="showApproveModal = false">Cancel</button>
+                    <button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Approve Loan</button>
+                </div>
+            </form>
+        </AppModal>
+
+        <AppModal v-model="showRejectModal" title="Reject Loan" size="sm">
+            <form class="grid gap-3" @submit.prevent="submitRejectLoan">
+                <textarea
+                    v-model="rejectForm.admin_note"
+                    required
+                    rows="3"
+                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    placeholder="Rejection reason"
+                ></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="showRejectModal = false">Cancel</button>
+                    <button class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Reject Loan</button>
+                </div>
+            </form>
+        </AppModal>
+
+        <ConfirmModal
+            v-model="showDeleteModal"
+            title="Delete Loan Request"
+            message="Are you sure you want to delete this loan request?"
+            confirm-text="Delete Loan"
+            tone="danger"
+            @confirm="confirmDeleteLoan"
+        />
 
         <article v-if="selectedLoan" class="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -96,9 +243,12 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import AppModal from '../../../components/ui/AppModal.vue';
+import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { useAuthStore } from '../../../stores/auth.store';
 import { useToastStore } from '../../../stores/toast.store';
+import { EmployeeService } from '../../../services/employee.service';
 import { LoanService } from '../../../services/loan.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
@@ -106,13 +256,41 @@ const auth = useAuthStore();
 const toast = useToastStore();
 
 const status = ref('pending');
+const employees = ref([]);
 const rows = ref([]);
 const selectedLoan = ref(null);
 const repaymentSchedule = ref([]);
+const showEditModal = ref(false);
+const showApproveModal = ref(false);
+const showRejectModal = ref(false);
+const showDeleteModal = ref(false);
+const actionLoanId = ref(null);
+const deleteLoanId = ref(null);
+const createForm = reactive({
+    employee_id: '',
+    amount_requested: '',
+    preferred_repayment_months: '',
+    reason: '',
+});
+const editForm = reactive({
+    amount_requested: '',
+    reason: '',
+    status: 'pending',
+});
+const approveForm = reactive({
+    amount_approved: '',
+    repayment_months: '12',
+    start_month: new Date().toISOString().slice(0, 10),
+    admin_note: '',
+});
+const rejectForm = reactive({
+    admin_note: '',
+});
 
 let adminChannel = null;
 
 onMounted(async () => {
+    await loadEmployees();
     await load();
     subscribeRealTime();
 });
@@ -123,6 +301,15 @@ onUnmounted(() => {
         adminChannel.stopListening('loan.applied');
     }
 });
+
+async function loadEmployees() {
+    try {
+        const response = await EmployeeService.list({ per_page: 200 });
+        employees.value = response.data.data ?? [];
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to load employees.'));
+    }
+}
 
 async function load() {
     try {
@@ -143,46 +330,135 @@ async function openLoan(id) {
     }
 }
 
-async function approve(loan) {
-    const amount = window.prompt('Approved amount', String(loan.amount_requested ?? ''));
-    if (!amount) {
-        return;
-    }
+async function createLoan() {
+    try {
+        await LoanService.adminCreate({
+            employee_id: Number(createForm.employee_id),
+            amount_requested: Number(createForm.amount_requested),
+            reason: createForm.reason,
+            preferred_repayment_months: createForm.preferred_repayment_months
+                ? Number(createForm.preferred_repayment_months)
+                : undefined,
+        });
 
-    const months = window.prompt('Repayment months', '12');
-    if (!months) {
-        return;
-    }
+        createForm.employee_id = '';
+        createForm.amount_requested = '';
+        createForm.preferred_repayment_months = '';
+        createForm.reason = '';
 
-    const startMonth = window.prompt('Start month (YYYY-MM-01)', new Date().toISOString().slice(0, 10));
-    if (!startMonth) {
+        toast.success('Loan created successfully.');
+        await load();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to create loan.'));
+    }
+}
+
+function openEditModal(loan) {
+    actionLoanId.value = loan.id;
+    editForm.amount_requested = String(loan.amount_requested ?? '');
+    editForm.reason = loan.reason ?? '';
+    editForm.status = loan.status === 'pending' ? 'pending' : 'rejected';
+    showEditModal.value = true;
+}
+
+async function submitEditLoan() {
+    if (!actionLoanId.value) {
         return;
     }
 
     try {
-        await LoanService.approve(loan.id, {
-            amount_approved: Number(amount),
-            repayment_months: Number(months),
-            start_month: startMonth,
+        await LoanService.adminUpdate(actionLoanId.value, {
+            amount_requested: Number(editForm.amount_requested),
+            reason: editForm.reason,
+            status: editForm.status,
         });
 
+        showEditModal.value = false;
+        toast.success('Loan updated successfully.');
+        await load();
+
+        if (selectedLoan.value?.id === actionLoanId.value) {
+            await openLoan(actionLoanId.value);
+        }
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to update loan.'));
+    }
+}
+
+function openApproveModal(loan) {
+    actionLoanId.value = loan.id;
+    approveForm.amount_approved = String(loan.amount_requested ?? '');
+    approveForm.repayment_months = '12';
+    approveForm.start_month = new Date().toISOString().slice(0, 10);
+    approveForm.admin_note = '';
+    showApproveModal.value = true;
+}
+
+async function submitApproveLoan() {
+    if (!actionLoanId.value) {
+        return;
+    }
+
+    try {
+        await LoanService.approve(actionLoanId.value, {
+            amount_approved: Number(approveForm.amount_approved),
+            repayment_months: Number(approveForm.repayment_months),
+            start_month: approveForm.start_month,
+            admin_note: approveForm.admin_note || undefined,
+        });
+
+        showApproveModal.value = false;
         toast.success('Loan approved successfully.');
         await load();
-        await openLoan(loan.id);
+        await openLoan(actionLoanId.value);
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to approve loan.'));
     }
 }
 
-async function reject(id) {
-    const adminNote = window.prompt('Rejection reason');
-    if (!adminNote) {
+function openRejectModal(id) {
+    actionLoanId.value = id;
+    rejectForm.admin_note = '';
+    showRejectModal.value = true;
+}
+
+async function submitRejectLoan() {
+    if (!actionLoanId.value || !rejectForm.admin_note.trim()) {
         return;
     }
 
     try {
-        await LoanService.reject(id, { admin_note: adminNote });
+        await LoanService.reject(actionLoanId.value, { admin_note: rejectForm.admin_note });
+        showRejectModal.value = false;
         toast.success('Loan rejected successfully.');
+        await load();
+
+        if (selectedLoan.value?.id === actionLoanId.value) {
+            selectedLoan.value = null;
+            repaymentSchedule.value = [];
+        }
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to reject loan.'));
+    }
+}
+
+function openDeleteLoanModal(id) {
+    deleteLoanId.value = id;
+    showDeleteModal.value = true;
+}
+
+async function confirmDeleteLoan() {
+    if (!deleteLoanId.value) {
+        return;
+    }
+
+    const id = deleteLoanId.value;
+
+    try {
+        await LoanService.adminDelete(id);
+        showDeleteModal.value = false;
+        deleteLoanId.value = null;
+        toast.success('Loan deleted successfully.');
         await load();
 
         if (selectedLoan.value?.id === id) {
@@ -190,7 +466,7 @@ async function reject(id) {
             repaymentSchedule.value = [];
         }
     } catch (error) {
-        toast.error(getApiErrorMessage(error, 'Unable to reject loan.'));
+        toast.error(getApiErrorMessage(error, 'Unable to delete loan.'));
     }
 }
 
