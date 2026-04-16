@@ -1,9 +1,40 @@
 <template>
-    <section class="space-y-4">
+    <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Credit Governance</p>
+                <h1 class="text-2xl font-black text-slate-900">Loan Portfolio Control</h1>
+                <p class="mt-1 text-sm text-slate-600">Approve, monitor, and manage employee credit lifecycle from request to repayment closure.</p>
+            </div>
+
+            <button class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="load">
+                Sync Portfolio
+            </button>
+        </header>
+
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total Requests</p>
+                <p class="mt-2 text-2xl font-black text-slate-900">{{ rows.length }}</p>
+            </article>
+            <article class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Pending Approvals</p>
+                <p class="mt-2 text-2xl font-black text-amber-800">{{ pendingCount }}</p>
+            </article>
+            <article class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Approved Principal</p>
+                <p class="mt-2 text-2xl font-black text-indigo-900">{{ number(totalApprovedAmount) }}</p>
+            </article>
+            <article class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">Outstanding Balance</p>
+                <p class="mt-2 text-2xl font-black text-rose-800">{{ number(totalOutstandingAmount) }}</p>
+            </article>
+        </div>
+
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Create Loan Request</h3>
-            <form class="mt-3 grid md:grid-cols-4 gap-3" @submit.prevent="createLoan">
-                <select v-model="createForm.employee_id" required class="rounded-lg border border-slate-300 px-3 py-2">
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Create Loan Request</h2>
+            <form class="mt-4 grid gap-3 md:grid-cols-4" @submit.prevent="createLoan">
+                <select v-model="createForm.employee_id" required class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                     <option value="">Select employee</option>
                     <option v-for="employee in employees" :key="employee.id" :value="employee.id">
                         {{ employee.employee_code }} - {{ employee.user?.name }}
@@ -15,7 +46,7 @@
                     type="number"
                     min="1"
                     step="0.01"
-                    class="rounded-lg border border-slate-300 px-3 py-2"
+                    class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
                     placeholder="Requested amount"
                 >
                 <input
@@ -23,91 +54,106 @@
                     type="number"
                     min="1"
                     max="60"
-                    class="rounded-lg border border-slate-300 px-3 py-2"
-                    placeholder="Preferred months (optional)"
+                    class="rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                    placeholder="Preferred months"
                 >
-                <button class="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-semibold">Create Loan</button>
+                <button class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Create Loan</button>
                 <textarea
                     v-model="createForm.reason"
                     required
                     rows="2"
-                    class="md:col-span-4 rounded-lg border border-slate-300 px-3 py-2"
-                    placeholder="Reason"
+                    class="md:col-span-4 rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+                    placeholder="Reason and context"
                 ></textarea>
             </form>
         </article>
 
-        <div class="flex flex-wrap items-end gap-3">
-            <div>
-                <label class="text-xs font-semibold text-slate-600">Status</label>
-                <select v-model="status" class="block mt-1 rounded-lg border border-slate-300 px-3 py-2">
-                    <option value="">All</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-            </div>
-            <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="load">Refresh</button>
-        </div>
+        <article class="rounded-2xl border border-slate-200 bg-white p-4">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Status Filter</label>
+                    <select v-model="status" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
 
-        <article class="rounded-2xl border border-slate-200 bg-white overflow-x-auto">
+                <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">
+                    Refresh List
+                </button>
+            </div>
+        </article>
+
+        <article class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table class="w-full text-sm">
                 <thead class="bg-slate-100 text-slate-600">
                     <tr>
-                        <th class="text-left p-3">Reference</th>
-                        <th class="text-left p-3">Employee</th>
-                        <th class="text-left p-3">Requested</th>
-                        <th class="text-left p-3">Approved</th>
-                        <th class="text-left p-3">EMI</th>
-                        <th class="text-left p-3">Remaining</th>
-                        <th class="text-left p-3">Progress</th>
-                        <th class="text-left p-3">Status</th>
-                        <th class="text-right p-3">Actions</th>
+                        <th class="p-3 text-left">Reference</th>
+                        <th class="p-3 text-left">Employee</th>
+                        <th class="p-3 text-left">Requested</th>
+                        <th class="p-3 text-left">Approved</th>
+                        <th class="p-3 text-left">EMI</th>
+                        <th class="p-3 text-left">Remaining</th>
+                        <th class="p-3 text-left">Progress</th>
+                        <th class="p-3 text-left">Status</th>
+                        <th class="p-3 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="loan in rows" :key="loan.id" class="border-t border-slate-100">
-                        <td class="p-3">{{ loan.loan_reference }}</td>
-                        <td class="p-3">{{ loan.employee?.user?.name }}</td>
+                    <tr v-for="loan in rows" :key="loan.id" class="border-t border-slate-100 hover:bg-slate-50/70">
+                        <td class="p-3 font-semibold text-slate-900">{{ loan.loan_reference }}</td>
+                        <td class="p-3">{{ loan.employee?.user?.name || '-' }}</td>
                         <td class="p-3">{{ number(loan.amount_requested) }}</td>
                         <td class="p-3">{{ number(loan.amount_approved) }}</td>
                         <td class="p-3">{{ number(loan.emi_amount) }}</td>
                         <td class="p-3">{{ number(loan.amount_remaining) }}</td>
                         <td class="p-3">{{ Number(loan.repayment_progress_percent ?? 0).toFixed(1) }}%</td>
-                        <td class="p-3 capitalize">{{ loan.status }}</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button class="text-xs font-semibold text-blue-700" @click="openLoan(loan.id)">View</button>
+                        <td class="p-3">
+                            <span
+                                class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize"
+                                :class="statusClass(loan.status)"
+                            >
+                                {{ loan.status }}
+                            </span>
+                        </td>
+                        <td class="space-x-2 p-3 text-right">
+                            <button class="text-xs font-semibold text-blue-700 hover:text-blue-900" @click="openLoan(loan.id)">View</button>
                             <button
                                 v-if="loan.status === 'pending'"
-                                class="text-xs font-semibold text-emerald-700"
+                                class="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
                                 @click="openApproveModal(loan)"
                             >
                                 Approve
                             </button>
                             <button
                                 v-if="loan.status === 'pending'"
-                                class="text-xs font-semibold text-rose-700"
+                                class="text-xs font-semibold text-rose-700 hover:text-rose-900"
                                 @click="openRejectModal(loan.id)"
                             >
                                 Reject
                             </button>
                             <button
                                 v-if="['pending', 'rejected'].includes(loan.status)"
-                                class="text-xs font-semibold text-amber-700"
+                                class="text-xs font-semibold text-amber-700 hover:text-amber-900"
                                 @click="openEditModal(loan)"
                             >
                                 Edit
                             </button>
                             <button
                                 v-if="['pending', 'rejected'].includes(loan.status)"
-                                class="text-xs font-semibold text-rose-700"
+                                class="text-xs font-semibold text-rose-700 hover:text-rose-900"
                                 @click="openDeleteLoanModal(loan.id)"
                             >
                                 Delete
                             </button>
                         </td>
+                    </tr>
+                    <tr v-if="rows.length === 0">
+                        <td colspan="9" class="p-4 text-center text-slate-500">No loan requests found for current filter.</td>
                     </tr>
                 </tbody>
             </table>
@@ -243,7 +289,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import AppModal from '../../../components/ui/AppModal.vue';
 import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { useAuthStore } from '../../../stores/auth.store';
@@ -286,6 +332,10 @@ const approveForm = reactive({
 const rejectForm = reactive({
     admin_note: '',
 });
+
+const pendingCount = computed(() => rows.value.filter((loan) => String(loan.status).toLowerCase() === 'pending').length);
+const totalApprovedAmount = computed(() => rows.value.reduce((sum, loan) => sum + Number(loan.amount_approved ?? 0), 0));
+const totalOutstandingAmount = computed(() => rows.value.reduce((sum, loan) => sum + Number(loan.amount_remaining ?? 0), 0));
 
 let adminChannel = null;
 
@@ -496,5 +546,27 @@ function subscribeRealTime() {
 
 function number(v) {
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(v ?? 0));
+}
+
+function statusClass(status) {
+    const value = String(status ?? '').toLowerCase();
+
+    if (value === 'approved' || value === 'active') {
+        return 'bg-indigo-100 text-indigo-700';
+    }
+
+    if (value === 'completed') {
+        return 'bg-emerald-100 text-emerald-700';
+    }
+
+    if (value === 'pending') {
+        return 'bg-amber-100 text-amber-700';
+    }
+
+    if (value === 'rejected') {
+        return 'bg-rose-100 text-rose-700';
+    }
+
+    return 'bg-slate-100 text-slate-700';
 }
 </script>

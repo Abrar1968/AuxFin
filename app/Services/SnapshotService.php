@@ -7,21 +7,33 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Liability;
+use App\Models\ProjectPayment;
 use App\Models\SalaryMonth;
 use Carbon\Carbon;
 
 class SnapshotService
 {
+    /**
+     * @var array<int, string>
+     */
+    private const ACCRUAL_INVOICE_STATUSES = ['sent', 'partial', 'paid', 'overdue'];
+
     public function capture(?string $month = null): CompanySnapshot
     {
         $monthDate = $month
             ? Carbon::parse($month)->startOfMonth()
             : now()->startOfMonth();
 
+        $monthStart = $monthDate->copy()->startOfMonth();
+        $monthEnd = $monthDate->copy()->endOfMonth();
+
         $totalRevenue = (float) Invoice::query()
-            ->whereNotNull('payment_completed_at')
-            ->whereYear('payment_completed_at', $monthDate->year)
-            ->whereMonth('payment_completed_at', $monthDate->month)
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->whereBetween('invoice_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->sum('amount');
+
+        $totalCashCollected = (float) ProjectPayment::query()
+            ->whereBetween('payment_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->sum('amount');
 
         $totalPayroll = (float) SalaryMonth::query()
@@ -41,14 +53,23 @@ class SnapshotService
         $netProfit = $grossProfit - $totalOpex - $liabilityCost;
         $burnRate = $this->calculateBurnRate();
         $headcount = Employee::query()->count();
-        $totalAr = (float) Invoice::query()
-            ->whereNull('payment_completed_at')
+
+        $accruedToDate = (float) Invoice::query()
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->whereDate('invoice_date', '<=', $monthEnd->toDateString())
             ->sum('amount');
+
+        $cashCollectedToDate = (float) ProjectPayment::query()
+            ->whereDate('payment_date', '<=', $monthEnd->toDateString())
+            ->sum('amount');
+
+        $totalAr = max(0, $accruedToDate - $cashCollectedToDate);
 
         return CompanySnapshot::query()->updateOrCreate(
             ['snapshot_month' => $monthDate->toDateString()],
             [
                 'total_revenue' => round($totalRevenue, 2),
+                'total_cash_collected' => round($totalCashCollected, 2),
                 'total_payroll' => round($totalPayroll, 2),
                 'total_opex' => round($totalOpex, 2),
                 'gross_profit' => round($grossProfit, 2),

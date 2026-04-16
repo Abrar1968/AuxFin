@@ -1,10 +1,10 @@
 <template>
-    <header class="sticky top-0 z-20 h-16 border-b border-sky-100/80 bg-white/70 backdrop-blur-xl">
-        <div class="h-full flex items-center justify-between gap-3 px-4 md:px-6">
+    <header class="sticky top-0 z-30 border-b border-sky-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,.95),rgba(248,252,255,.88))] backdrop-blur-xl">
+        <div class="flex h-16 items-center justify-between gap-3 px-4 md:px-6">
             <div class="flex min-w-0 items-center gap-3">
                 <button
                     type="button"
-                    class="fin-focus-ring inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200/80 bg-white/80 text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-white"
+                    class="fin-focus-ring inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200/90 bg-white text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-sky-50"
                     @click="$emit('toggle-sidebar')"
                 >
                     <span class="text-base">≡</span>
@@ -12,25 +12,51 @@
 
                 <div class="min-w-0">
                     <p class="text-[11px] uppercase tracking-[0.12em] text-sky-700/80">FinERP Workspace</p>
-                    <h2 class="truncate text-lg font-bold text-(--text-primary)">{{ title }}</h2>
+                    <h2 class="truncate text-lg font-extrabold text-slate-900">{{ title }}</h2>
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 md:gap-3">
                 <NotificationBell />
-                <div class="hidden sm:flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/90 px-2 py-1 shadow-sm">
+
+                <div class="hidden md:flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/95 px-2 py-1 shadow-sm">
                     <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-(image:--color-gradient) text-xs font-bold text-white shadow-[0_6px_14px_rgba(2,132,199,.35)]">
                         {{ initials }}
                     </span>
                     <div class="pr-1">
-                        <p class="text-xs font-semibold text-slate-800 leading-none">{{ auth.user?.name ?? 'Guest' }}</p>
+                        <p class="text-xs font-semibold leading-none text-slate-800">{{ auth.user?.name ?? 'Guest' }}</p>
                         <p class="mt-0.5 text-[11px] uppercase text-sky-700/70">{{ auth.role ?? 'guest' }}</p>
                     </div>
                 </div>
 
                 <button
                     type="button"
-                    class="hidden sm:inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:-translate-y-px hover:bg-sky-50"
+                    class="hidden md:inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:-translate-y-px hover:bg-sky-50"
+                    @click="onLogout"
+                >
+                    Logout
+                </button>
+
+                <button
+                    type="button"
+                    class="fin-focus-ring inline-flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-white text-xs font-bold text-slate-700 shadow-sm md:hidden"
+                    @click="mobileMenuOpen = !mobileMenuOpen"
+                >
+                    {{ initials }}
+                </button>
+            </div>
+        </div>
+
+        <div v-if="mobileMenuOpen" class="border-t border-sky-100 bg-white/95 px-4 py-3 md:hidden">
+            <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-slate-800">{{ auth.user?.name ?? 'Guest' }}</p>
+                    <p class="mt-0.5 text-xs uppercase tracking-[0.08em] text-sky-700/75">{{ auth.role ?? 'guest' }}</p>
+                </div>
+
+                <button
+                    type="button"
+                    class="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
                     @click="onLogout"
                 >
                     Logout
@@ -41,7 +67,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.store';
 import NotificationBell from './NotificationBell.vue';
@@ -51,6 +77,7 @@ defineEmits(['toggle-sidebar']);
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const mobileMenuOpen = ref(false);
 
 const initials = computed(() => {
     const source = String(auth.user?.name ?? 'U').trim();
@@ -98,6 +125,13 @@ const title = computed(() => {
 
     return map[route.name] ?? 'FinERP';
 });
+
+watch(
+    () => route.fullPath,
+    () => {
+        mobileMenuOpen.value = false;
+    },
+);
 
 async function onLogout() {
     await auth.logout();

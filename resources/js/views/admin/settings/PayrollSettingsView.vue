@@ -1,7 +1,38 @@
 <template>
-    <section class="space-y-4">
+    <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Platform Governance</p>
+                <h1 class="text-2xl font-black text-slate-900">System & Policy Settings</h1>
+                <p class="mt-1 text-sm text-slate-600">Configure organizational defaults, compensation rules, and compliance-sensitive parameters.</p>
+            </div>
+        </header>
+
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Company</p>
+                <p class="mt-2 text-lg font-black text-slate-900">{{ general.company_name || '-' }}</p>
+                <p class="text-xs text-slate-600">{{ general.currency || '-' }} | {{ general.timezone || '-' }}</p>
+            </article>
+
+            <article class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Available Cash</p>
+                <p class="mt-2 text-lg font-black text-indigo-900">{{ Number(general.available_cash ?? 0).toLocaleString() }}</p>
+            </article>
+
+            <article class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Corporate Tax</p>
+                <p class="mt-2 text-lg font-black text-amber-800">{{ Number(taxPolicy.corporate_tax_rate ?? 0).toFixed(2) }}%</p>
+            </article>
+
+            <article class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Loan Cap</p>
+                <p class="mt-2 text-lg font-black text-emerald-800">{{ loanPolicy.max_loan_multiplier }}x / {{ loanPolicy.max_repayment_months }}m</p>
+            </article>
+        </div>
+
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">General System Settings</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">General System Settings</h2>
             <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="saveGeneral">
                 <div>
                     <label class="text-xs font-semibold text-slate-600">Company Name</label>
@@ -28,7 +59,7 @@
         </article>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Tax Policy</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Tax Policy</h2>
             <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="saveTaxPolicy">
                 <div>
                     <label class="text-xs font-semibold text-slate-600">Corporate Tax Rate (%)</label>
@@ -39,7 +70,7 @@
         </article>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Late Policy</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Late Policy</h2>
             <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="savePolicy">
                 <div>
                     <label class="text-xs font-semibold text-slate-600">Late Days Per Unit</label>
@@ -69,7 +100,7 @@
         </article>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Loan Policy</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Loan Policy</h2>
             <form class="mt-3 grid md:grid-cols-2 gap-3" @submit.prevent="saveLoanPolicy">
                 <div>
                     <label class="text-xs font-semibold text-slate-600">Max Loan Multiplier (x basic salary)</label>
@@ -92,7 +123,7 @@
         </article>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Public Holidays</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Public Holidays</h2>
             <form class="mt-3 grid md:grid-cols-3 gap-3" @submit.prevent="createHoliday">
                 <input v-model="holidayForm.name" required class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Holiday name">
                 <input v-model="holidayForm.date" required type="date" class="rounded-lg border border-slate-300 px-3 py-2">
@@ -108,12 +139,15 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in holidays" :key="row.id" class="border-t border-slate-100">
+                    <tr v-for="row in holidays" :key="row.id" class="border-t border-slate-100 hover:bg-slate-50/70">
                         <td class="p-3">{{ row.date }}</td>
                         <td class="p-3">{{ row.name }}</td>
                         <td class="p-3 text-right">
                             <button class="text-xs font-semibold text-rose-700" @click="removeHoliday(row.id)">Delete</button>
                         </td>
+                    </tr>
+                    <tr v-if="holidays.length === 0">
+                        <td colspan="3" class="p-4 text-center text-slate-500">No holidays configured.</td>
                     </tr>
                 </tbody>
             </table>

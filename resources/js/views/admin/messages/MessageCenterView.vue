@@ -1,7 +1,39 @@
 <template>
-    <section class="space-y-4">
+    <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Service Desk</p>
+                <h1 class="text-2xl font-black text-slate-900">Employee Message Center</h1>
+                <p class="mt-1 text-sm text-slate-600">Handle inquiries, resolve appeals, and maintain response SLAs with structured actions.</p>
+            </div>
+
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-right">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Unread Inbox</p>
+                <p class="mt-1 text-2xl font-black text-indigo-900">{{ unreadCount }}</p>
+            </div>
+        </header>
+
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total Messages</p>
+                <p class="mt-2 text-2xl font-black text-slate-900">{{ rows.length }}</p>
+            </article>
+            <article class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Open</p>
+                <p class="mt-2 text-2xl font-black text-amber-800">{{ openCount }}</p>
+            </article>
+            <article class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Under Review</p>
+                <p class="mt-2 text-2xl font-black text-indigo-900">{{ underReviewCount }}</p>
+            </article>
+            <article class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Resolved</p>
+                <p class="mt-2 text-2xl font-black text-emerald-800">{{ resolvedCount }}</p>
+            </article>
+        </div>
+
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Create Message</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Compose Message</h2>
             <form class="mt-3 grid md:grid-cols-4 gap-3" @submit.prevent="createMessage">
                 <select v-model="compose.employee_id" required class="rounded-lg border border-slate-300 px-3 py-2">
                     <option value="">Select employee</option>
@@ -33,10 +65,12 @@
             </form>
         </article>
 
-        <div class="flex flex-wrap items-end gap-3">
+        <article class="rounded-2xl border border-slate-200 bg-white p-4">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+                <div class="flex flex-wrap items-end gap-3">
             <div>
-                <label class="text-xs font-semibold text-slate-600">Status</label>
-                <select v-model="status" class="block mt-1 rounded-lg border border-slate-300 px-3 py-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Status</label>
+                <select v-model="status" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                     <option value="">All</option>
                     <option value="open">Open</option>
                     <option value="under_review">Under Review</option>
@@ -46,8 +80,8 @@
             </div>
 
             <div>
-                <label class="text-xs font-semibold text-slate-600">Type</label>
-                <select v-model="type" class="block mt-1 rounded-lg border border-slate-300 px-3 py-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Type</label>
+                <select v-model="type" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                     <option value="">All</option>
                     <option value="late_appeal">Late Appeal</option>
                     <option value="deduction_dispute">Deduction Dispute</option>
@@ -59,17 +93,22 @@
             </div>
 
             <div>
-                <label class="text-xs font-semibold text-slate-600">Employee ID</label>
-                <input v-model.number="employeeId" type="number" min="1" class="block mt-1 rounded-lg border border-slate-300 px-3 py-2" placeholder="Optional">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Employee ID</label>
+                <input v-model.number="employeeId" type="number" min="1" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Optional">
             </div>
+                </div>
 
-            <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="load">Refresh</button>
-            <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="markAllRead">Mark all read</button>
+                <div class="flex flex-wrap gap-2">
+                    <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">Refresh</button>
+                    <button class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="markAllRead">Mark all read</button>
+                </div>
+            </div>
+        </article>
 
-            <span class="text-xs font-semibold text-slate-600">Unread: {{ unreadCount }}</span>
-        </div>
-
-        <article class="rounded-2xl border border-slate-200 bg-white overflow-x-auto">
+        <article class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <header class="border-b border-slate-200 px-5 py-4">
+                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Conversation Queue</h3>
+            </header>
             <table class="w-full text-sm">
                 <thead class="bg-slate-100 text-slate-600">
                     <tr>
@@ -84,7 +123,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="msg in rows" :key="msg.id" class="border-t border-slate-100" :class="selectedId === msg.id ? 'bg-blue-50/50' : ''">
+                    <tr v-for="msg in rows" :key="msg.id" class="border-t border-slate-100 hover:bg-slate-50/70" :class="selectedId === msg.id ? 'bg-blue-50/50' : ''">
                         <td class="p-3">
                             <span
                                 v-if="!msg.is_read"
@@ -92,10 +131,18 @@
                             ></span>
                         </td>
                         <td class="p-3">{{ msg.employee?.user?.name }}</td>
-                        <td class="p-3">{{ msg.type }}</td>
+                        <td class="p-3 capitalize">{{ msg.type?.replaceAll('_', ' ') }}</td>
                         <td class="p-3">{{ msg.subject }}</td>
-                        <td class="p-3">{{ msg.priority }}</td>
-                        <td class="p-3">{{ msg.status }}</td>
+                        <td class="p-3">
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="priorityClass(msg.priority)">
+                                {{ msg.priority }}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="statusClass(msg.status)">
+                                {{ msg.status?.replaceAll('_', ' ') }}
+                            </span>
+                        </td>
                         <td class="p-3">{{ formatDateTime(msg.updated_at) }}</td>
                         <td class="p-3 text-right">
                             <button class="text-xs font-semibold text-blue-700" @click="openMessage(msg.id)">Open</button>
@@ -109,11 +156,11 @@
             </table>
         </article>
 
-        <article v-if="selected" class="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+        <article v-if="selected" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h3 class="font-bold text-slate-900">{{ selected.subject }}</h3>
-                    <p class="text-xs text-slate-600 mt-1">{{ selected.type }} | {{ selected.status }}</p>
+                    <p class="mt-1 text-xs text-slate-600">{{ selected.type }} | {{ selected.status }}</p>
                 </div>
                 <div class="text-xs text-slate-600 text-right">
                     <p>Employee: {{ selected.employee?.user?.name }}</p>
@@ -240,6 +287,9 @@ const compose = reactive({
 let adminChannel = null;
 
 const canTakeAction = computed(() => ['late_appeal', 'deduction_dispute'].includes(selected.value?.type ?? ''));
+const openCount = computed(() => rows.value.filter((msg) => String(msg.status).toLowerCase() === 'open').length);
+const underReviewCount = computed(() => rows.value.filter((msg) => String(msg.status).toLowerCase() === 'under_review').length);
+const resolvedCount = computed(() => rows.value.filter((msg) => String(msg.status).toLowerCase() === 'resolved').length);
 
 onMounted(async () => {
     await loadEmployees();
@@ -419,7 +469,7 @@ async function markAllRead() {
 }
 
 function subscribeRealTime() {
-    const echo = window.EchoChat || window.EchoNotifications || window.Echo || window.EchoMain;
+    const echo = window.EchoMain || window.EchoChat || window.EchoNotifications || window.Echo;
     if (!echo || !auth.token) {
         return;
     }
@@ -452,5 +502,37 @@ function formatDateTime(value) {
     }
 
     return date.toLocaleString();
+}
+
+function statusClass(status) {
+    const value = String(status ?? '').toLowerCase();
+
+    if (value === 'open') {
+        return 'bg-amber-100 text-amber-700';
+    }
+
+    if (value === 'under_review') {
+        return 'bg-indigo-100 text-indigo-700';
+    }
+
+    if (value === 'resolved') {
+        return 'bg-emerald-100 text-emerald-700';
+    }
+
+    if (value === 'rejected') {
+        return 'bg-rose-100 text-rose-700';
+    }
+
+    return 'bg-slate-100 text-slate-700';
+}
+
+function priorityClass(priority) {
+    const value = String(priority ?? '').toLowerCase();
+
+    if (value === 'high') {
+        return 'bg-rose-100 text-rose-700';
+    }
+
+    return 'bg-slate-100 text-slate-700';
 }
 </script>

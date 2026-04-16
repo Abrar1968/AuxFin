@@ -1,32 +1,56 @@
 <template>
-    <section class="space-y-4">
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-            <div class="grid md:grid-cols-4 gap-3 text-sm">
-                <div class="rounded-lg bg-slate-100 p-3">Booked Revenue: <strong>{{ number(kpis.booked_revenue) }}</strong></div>
-                <div class="rounded-lg bg-slate-100 p-3">Recognized Revenue: <strong>{{ number(kpis.recognized_revenue) }}</strong></div>
-                <div class="rounded-lg bg-slate-100 p-3">Accounts Receivable: <strong>{{ number(kpis.accounts_receivable) }}</strong></div>
-                <div class="rounded-lg bg-slate-100 p-3">Overdue Invoices: <strong>{{ kpis.overdue_invoices ?? 0 }}</strong></div>
+    <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Revenue Operations</p>
+                <h1 class="text-2xl font-black text-slate-900">Projects & Clients Portfolio</h1>
+                <p class="mt-1 text-sm text-slate-600">Maintain client accounts, contract pipeline, and receivable health in one workspace.</p>
+            </div>
+
+            <button class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="loadAll">
+                Refresh Portfolio
+            </button>
+        </header>
+
+        <article class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="grid gap-3 text-sm md:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Booked Revenue</p>
+                    <p class="mt-2 text-xl font-black text-slate-900">{{ number(kpis.booked_revenue) }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Recognized Revenue</p>
+                    <p class="mt-2 text-xl font-black text-slate-900">{{ number(kpis.recognized_revenue) }}</p>
+                </div>
+                <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Accounts Receivable</p>
+                    <p class="mt-2 text-xl font-black text-indigo-900">{{ number(kpis.accounts_receivable) }}</p>
+                </div>
+                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Overdue Invoices</p>
+                    <p class="mt-2 text-xl font-black text-amber-800">{{ kpis.overdue_invoices ?? 0 }}</p>
+                </div>
             </div>
 
             <div>
-                <div class="flex items-center justify-between text-sm mb-1">
+                <div class="mb-1 flex items-center justify-between text-sm">
                     <span class="font-semibold text-slate-700">Revenue Collection Rate</span>
-                    <span class="font-bold">{{ Number(kpis.collection_rate_percent ?? 0).toFixed(2) }}%</span>
+                    <span class="font-bold text-slate-900">{{ Number(kpis.collection_rate_percent ?? 0).toFixed(2) }}%</span>
                 </div>
                 <ProgressBar :value="Number(kpis.collection_rate_percent ?? 0)" />
             </div>
 
-            <div class="grid md:grid-cols-2 gap-4 items-center">
+            <div class="grid items-center gap-4 md:grid-cols-2">
                 <div class="rounded-xl border border-slate-200 p-3">
-                    <h4 class="font-semibold text-sm mb-2">Invoice Funnel</h4>
+                    <h4 class="mb-2 text-sm font-semibold text-slate-900">Invoice Funnel</h4>
                     <FunnelChart />
                 </div>
                 <div class="rounded-xl border border-slate-200 p-3 text-sm">
-                    <h4 class="font-semibold mb-2">Invoice Stage Totals</h4>
+                    <h4 class="mb-2 font-semibold text-slate-900">Invoice Stage Totals</h4>
                     <ul class="space-y-1">
                         <li v-for="row in invoiceFunnel" :key="row.status" class="flex justify-between">
-                            <span class="capitalize">{{ row.status }}</span>
-                            <span>{{ number(row.amount) }}</span>
+                            <span class="capitalize text-slate-600">{{ row.status }}</span>
+                            <span class="font-semibold text-slate-900">{{ number(row.amount) }}</span>
                         </li>
                     </ul>
                 </div>
@@ -34,7 +58,7 @@
         </article>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Add Client</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Add Client</h2>
             <form class="mt-3 grid md:grid-cols-4 gap-3" @submit.prevent="createClient">
                 <input v-model="clientForm.name" required class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Client name">
                 <input v-model="clientForm.email" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Email">
@@ -43,7 +67,10 @@
             </form>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white overflow-x-auto">
+        <article class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <header class="border-b border-slate-200 px-5 py-4">
+                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Client Directory</h3>
+            </header>
             <table class="w-full text-sm">
                 <thead class="bg-slate-100 text-slate-600">
                     <tr>
@@ -54,7 +81,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="client in clients" :key="client.id" class="border-t border-slate-100">
+                    <tr v-for="client in clients" :key="client.id" class="border-t border-slate-100 hover:bg-slate-50/70">
                         <td class="p-3">{{ client.name }}</td>
                         <td class="p-3">{{ client.email ?? '-' }}</td>
                         <td class="p-3">{{ client.phone ?? '-' }}</td>
@@ -71,7 +98,7 @@
         </article>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Create Project</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Create Project</h2>
             <form class="mt-3 grid md:grid-cols-3 gap-3" @submit.prevent="createProject">
                 <select v-model="projectForm.client_id" required class="rounded-lg border border-slate-300 px-3 py-2">
                     <option value="">Select Client</option>
@@ -90,7 +117,10 @@
             </form>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white overflow-x-auto">
+        <article class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <header class="border-b border-slate-200 px-5 py-4">
+                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Project Pipeline</h3>
+            </header>
             <table class="w-full text-sm">
                 <thead class="bg-slate-100 text-slate-600">
                     <tr>
@@ -105,14 +135,18 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in projectRows" :key="row.id" class="border-t border-slate-100">
+                    <tr v-for="row in projectRows" :key="row.id" class="border-t border-slate-100 hover:bg-slate-50/70">
                         <td class="p-3">{{ row.name }}</td>
                         <td class="p-3">{{ row.client?.name }}</td>
                         <td class="p-3">{{ number(row.contract_amount) }}</td>
                         <td class="p-3">{{ number(row.booked_revenue) }}</td>
                         <td class="p-3">{{ number(row.recognized_revenue) }}</td>
                         <td class="p-3">{{ number(row.accounts_receivable) }}</td>
-                        <td class="p-3 capitalize">{{ row.status }}</td>
+                        <td class="p-3">
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="projectStatusClass(row.status)">
+                                {{ row.status }}
+                            </span>
+                        </td>
                         <td class="p-3 text-right space-x-3">
                             <RouterLink :to="`/admin/projects/${row.id}/invoices`" class="text-xs font-semibold text-blue-700">Invoices</RouterLink>
                             <button class="text-xs font-semibold text-amber-700" @click="openProjectEditModal(row)">Edit</button>
@@ -395,5 +429,27 @@ async function submitProjectEdit() {
 
 function number(v) {
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(v ?? 0));
+}
+
+function projectStatusClass(status) {
+    const value = String(status ?? '').toLowerCase();
+
+    if (value === 'active') {
+        return 'bg-emerald-100 text-emerald-700';
+    }
+
+    if (value === 'completed') {
+        return 'bg-indigo-100 text-indigo-700';
+    }
+
+    if (value === 'on_hold') {
+        return 'bg-amber-100 text-amber-700';
+    }
+
+    if (value === 'cancelled') {
+        return 'bg-rose-100 text-rose-700';
+    }
+
+    return 'bg-slate-100 text-slate-700';
 }
 </script>

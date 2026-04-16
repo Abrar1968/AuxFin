@@ -1,8 +1,9 @@
 <template>
-    <div class="relative">
+    <div ref="containerRef" class="relative">
         <button
             type="button"
-            class="fin-focus-ring relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-sky-200/80 bg-white/85 text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-white"
+            class="fin-focus-ring relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-sky-200/90 bg-white text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-sky-50"
+            aria-label="Toggle notifications"
             @click="open = !open"
         >
             <span class="text-base">&#128276;</span>
@@ -16,10 +17,13 @@
 
         <div
             v-if="open"
-            class="fin-glass absolute right-0 z-30 mt-2 w-88 max-w-[85vw] rounded-xl border border-sky-100/80 shadow-[0_20px_44px_rgba(2,132,199,.16)]"
+            class="fin-glass absolute right-0 z-30 mt-2 w-88 max-w-[90vw] overflow-hidden rounded-2xl border border-sky-100/80 shadow-[0_20px_44px_rgba(2,132,199,.16)]"
         >
             <div class="flex items-center justify-between gap-2 border-b border-sky-100 px-4 py-3">
-                <h4 class="text-sm font-semibold text-slate-900">Notifications</h4>
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-900">Notifications</h4>
+                    <p class="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-slate-500">Live updates feed</p>
+                </div>
                 <button
                     type="button"
                     class="text-xs font-semibold text-sky-700 hover:text-sky-900"
@@ -39,6 +43,7 @@
                     <button type="button" class="w-full text-left" @click="notifications.markRead(item.id)">
                         <p class="text-sm font-semibold text-slate-800">{{ titleFor(item.type) }}</p>
                         <p class="text-xs text-slate-600 mt-1">{{ subtitleFor(item) }}</p>
+                        <p class="mt-1 text-[11px] text-slate-500">{{ timeFor(item.createdAt) }}</p>
                     </button>
                 </li>
                 <li v-if="notifications.notifications.length === 0" class="px-4 py-5 text-sm text-slate-500">
@@ -50,11 +55,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useNotificationStore } from '../../stores/notification.store';
 
 const notifications = useNotificationStore();
 const open = ref(false);
+const containerRef = ref(null);
 
 function titleFor(type) {
     const labels = {
@@ -81,6 +87,11 @@ function titleFor(type) {
         'insight.report.profit_loss': 'Insights: Profit & Loss generated',
         'insight.report.tax_summary': 'Insights: Tax summary generated',
         'insight.report.ar_aging': 'Insights: AR aging generated',
+        'insight.report.trial_balance': 'Insights: Trial balance generated',
+        'insight.report.balance_sheet': 'Insights: Balance sheet generated',
+        'insight.report.cash_flow': 'Insights: Cash flow generated',
+        'insight.report.general_ledger': 'Insights: General ledger generated',
+        'insight.report.payment_ledger': 'Insights: Payment ledger generated',
         'insight.security.audit': 'Insights: Security audit completed',
     };
 
@@ -123,4 +134,47 @@ function subtitleFor(item) {
 
     return 'Tap to mark as read.';
 }
+
+function timeFor(value) {
+    if (!value) {
+        return 'Just now';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return 'Just now';
+    }
+
+    return date.toLocaleString();
+}
+
+function onDocumentClick(event) {
+    if (!open.value) {
+        return;
+    }
+
+    if (!containerRef.value) {
+        return;
+    }
+
+    if (!containerRef.value.contains(event.target)) {
+        open.value = false;
+    }
+}
+
+function onEscape(event) {
+    if (event.key === 'Escape') {
+        open.value = false;
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', onDocumentClick);
+    document.addEventListener('keydown', onEscape);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', onDocumentClick);
+    document.removeEventListener('keydown', onEscape);
+});
 </script>

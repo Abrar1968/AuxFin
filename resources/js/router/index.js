@@ -37,6 +37,7 @@ const routes = [
             { path: 'analytics', name: 'admin.analytics', component: () => import('../views/admin/analytics/AnalyticsOverviewView.vue') },
             { path: 'growth', name: 'admin.growth', component: () => import('../views/admin/analytics/GrowthDashboardView.vue') },
             { path: 'reports', name: 'admin.reports', component: () => import('../views/admin/reports/ReportsView.vue') },
+            { path: 'accounting', name: 'admin.accounting', component: () => import('../views/admin/accounting/AccountingView.vue') },
             { path: 'messages', name: 'admin.messages', component: () => import('../views/admin/messages/MessageCenterView.vue') },
         ],
     },

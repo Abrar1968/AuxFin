@@ -13,6 +13,11 @@ use Illuminate\Support\Facades\Cache;
 
 class AnomalyController extends Controller
 {
+    /**
+     * @var array<int, string>
+     */
+    private const ACCRUAL_INVOICE_STATUSES = ['sent', 'partial', 'paid', 'overdue'];
+
     public function __construct(private readonly ForecastService $forecastService)
     {
     }
@@ -50,16 +55,23 @@ class AnomalyController extends Controller
             $today = now()->startOfDay();
 
             $items = Invoice::query()
-                ->whereNull('payment_completed_at')
+                ->withSum('payments as paid_amount', 'amount')
+                ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
                 ->get()
                 ->map(function ($invoice) use ($today) {
+                    $outstanding = max(0, (float) $invoice->amount - (float) ($invoice->paid_amount ?? 0));
+                    if ($outstanding <= 0) {
+                        return null;
+                    }
+
                     $age = (int) Carbon::parse($invoice->due_date)->startOfDay()->diffInDays($today, false);
 
                     return [
-                        'amount' => (float) $invoice->amount,
+                        'amount' => $outstanding,
                         'bucket' => $this->bucketFromAge($age),
                     ];
                 })
+                ->filter()
                 ->values()
                 ->all();
 

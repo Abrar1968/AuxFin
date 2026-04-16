@@ -216,7 +216,7 @@ async function markAllRead() {
 
 function subscribeRealTime() {
     const employeeId = auth.user?.employee?.id;
-    const echo = window.EchoChat || window.EchoNotifications || window.Echo || window.EchoMain;
+    const echo = window.EchoMain || window.EchoChat || window.EchoNotifications || window.Echo;
 
     if (!echo || !auth.token || !employeeId) {
         return;

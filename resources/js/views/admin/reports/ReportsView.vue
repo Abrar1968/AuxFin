@@ -1,7 +1,15 @@
 <template>
     <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Financial Reporting</p>
+                <h1 class="text-2xl font-black text-slate-900">Reporting Workspace</h1>
+                <p class="mt-1 text-sm text-slate-600">Generate executive-ready statements for profitability, tax exposure, and receivable aging.</p>
+            </div>
+        </header>
+
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Reporting Controls</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Reporting Controls</h2>
             <div class="mt-3 grid md:grid-cols-3 gap-3">
                 <div>
                     <label class="text-xs font-semibold text-slate-600">From Month</label>
@@ -34,7 +42,7 @@
         <template v-else>
             <article class="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
                 <div class="flex items-center justify-between gap-3">
-                    <h3 class="font-bold">Profit & Loss</h3>
+                    <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Profit &amp; Loss</h3>
                     <span class="text-xs text-slate-600">{{ profitLoss.from }} to {{ profitLoss.to }}</span>
                 </div>
 
@@ -50,7 +58,7 @@
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
                 <div class="flex items-center justify-between gap-3">
-                    <h3 class="font-bold">Tax Summary</h3>
+                    <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Tax Summary</h3>
                     <span class="text-xs text-slate-600">Rate: {{ taxSummary.tax_rate_percent ?? 0 }}%</span>
                 </div>
 
@@ -59,7 +67,7 @@
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
                 <div class="flex items-center justify-between gap-3">
-                    <h3 class="font-bold">AR Aging</h3>
+                    <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">AR Aging</h3>
                     <span class="text-xs text-slate-600">Health: {{ arAging.health?.status ?? 'n/a' }} ({{ arAging.health?.score ?? 0 }})</span>
                 </div>
 
@@ -82,7 +90,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="row in arAging.items" :key="row.invoice_id" class="border-t border-slate-100">
+                        <tr v-for="row in arAging.items" :key="row.invoice_id" class="border-t border-slate-100 hover:bg-slate-50/70">
                             <td class="p-3">{{ row.invoice_number }}</td>
                             <td class="p-3">{{ row.client_name ?? '-' }}</td>
                             <td class="p-3">{{ row.age_days }}</td>

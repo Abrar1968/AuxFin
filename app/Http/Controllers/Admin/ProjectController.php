@@ -16,13 +16,18 @@ class ProjectController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $accrualStatuses = $this->financeService->accrualInvoiceStatuses();
+
         $rows = Project::query()
             ->with('client')
             ->withCount('invoices')
-            ->withSum('invoices as booked_revenue', 'amount')
             ->withSum([
-                'invoices as recognized_revenue' => fn ($query) => $query->whereNotNull('payment_completed_at'),
+                'invoices as booked_revenue' => fn ($query) => $query->whereIn('status', $accrualStatuses),
             ], 'amount')
+            ->withSum([
+                'invoices as recognized_revenue' => fn ($query) => $query->whereIn('status', $accrualStatuses),
+            ], 'amount')
+            ->withSum('payments as cash_collected', 'amount')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->query('status')))
             ->when($request->filled('client_id'), fn ($query) => $query->where('client_id', $request->integer('client_id')))
             ->when($request->filled('search'), function ($query) use ($request): void {
@@ -39,10 +44,13 @@ class ProjectController extends Controller
         $rows->getCollection()->transform(function (Project $project): Project {
             $booked = (float) ($project->booked_revenue ?? 0);
             $recognized = (float) ($project->recognized_revenue ?? 0);
+            $cashCollected = (float) ($project->cash_collected ?? 0);
 
             $project->setAttribute('booked_revenue', round($booked, 2));
             $project->setAttribute('recognized_revenue', round($recognized, 2));
-            $project->setAttribute('accounts_receivable', round(max(0, $booked - $recognized), 2));
+            $project->setAttribute('accrued_revenue', round($recognized, 2));
+            $project->setAttribute('cash_collected', round($cashCollected, 2));
+            $project->setAttribute('accounts_receivable', round(max(0, $recognized - $cashCollected), 2));
 
             return $project;
         });

@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Liability;
 use App\Models\Project;
+use App\Models\ProjectPayment;
 use App\Models\SalaryMonth;
 use App\Models\Setting;
 use App\Models\User;
@@ -121,6 +122,120 @@ test('ar aging report returns distribution buckets and health score', function (
     expect((float) $response->json('total_outstanding'))->toBeGreaterThan(0);
 });
 
+test('accounting statement endpoints return accrual payloads', function () {
+    [$admin] = seedPhaseSixSevenData();
+    Sanctum::actingAs($admin);
+
+    $asOf = now()->toDateString();
+    $month = now()->startOfMonth()->toDateString();
+
+    $this->getJson("/api/admin/reports/trial-balance?as_of={$asOf}")
+        ->assertOk()
+        ->assertJsonStructure([
+            'as_of',
+            'lines',
+            'totals' => ['debit', 'credit', 'difference'],
+            'is_balanced',
+        ]);
+
+    $this->getJson("/api/admin/reports/balance-sheet?as_of={$asOf}")
+        ->assertOk()
+        ->assertJsonStructure([
+            'as_of',
+            'assets',
+            'liabilities',
+            'equity',
+            'totals' => ['assets', 'liabilities', 'equity', 'liabilities_plus_equity'],
+            'is_balanced',
+        ]);
+
+    $this->getJson("/api/admin/reports/cash-flow?from_month={$month}&to_month={$month}")
+        ->assertOk()
+        ->assertJsonStructure([
+            'from',
+            'to',
+            'rows',
+            'totals' => ['cash_in_collections', 'operating_outflow', 'financing_outflow', 'net_cash_flow'],
+        ]);
+
+    $this->getJson('/api/admin/reports/general-ledger')
+        ->assertOk()
+        ->assertJsonStructure([
+            'from',
+            'to',
+            'entries',
+            'pagination' => ['page', 'per_page', 'total', 'last_page'],
+            'summary' => ['total_debit', 'total_credit'],
+        ]);
+
+    $this->getJson('/api/admin/reports/payment-ledger')
+        ->assertOk()
+        ->assertJsonStructure([
+            'from',
+            'to',
+            'entries',
+            'pagination' => ['page', 'per_page', 'total', 'last_page'],
+            'summary' => ['total_amount', 'payment_count', 'by_payment_method'],
+        ]);
+});
+
+test('admin can record and delete project payments for invoices', function () {
+    [$admin, $project, $paidInvoice, $partialInvoice] = seedPhaseSixSevenData();
+    Sanctum::actingAs($admin);
+
+    $createResponse = $this->postJson("/api/admin/projects/{$project->id}/payments", [
+        'invoice_id' => $partialInvoice->id,
+        'payment_date' => now()->toDateString(),
+        'amount' => 1500,
+        'payment_method' => 'bank_transfer',
+        'reference_number' => 'TEST-PAY-001',
+    ])->assertCreated();
+
+    $paymentId = (int) $createResponse->json('payment.id');
+
+    expect($paymentId)->toBeGreaterThan(0);
+
+    $this->getJson("/api/admin/projects/{$project->id}/payments")
+        ->assertOk()
+        ->assertJsonPath('total', 3);
+
+    $this->deleteJson("/api/admin/projects/{$project->id}/payments/{$paymentId}")
+        ->assertOk();
+
+    expect(ProjectPayment::query()->find($paymentId))->toBeNull();
+
+    // A fully paid seeded invoice should stay paid.
+    expect($paidInvoice->fresh()->status)->toBe('paid');
+});
+
+test('invoice status transitions create payment ledger and sync invoice totals', function () {
+    [$admin, $project, $paidInvoice, $partialInvoice] = seedPhaseSixSevenData();
+    Sanctum::actingAs($admin);
+
+    $this->postJson("/api/admin/projects/{$project->id}/invoices/{$partialInvoice->id}/status", [
+        'status' => 'partial',
+        'partial_amount' => 1000,
+    ])->assertOk();
+
+    expect(
+        ProjectPayment::query()
+            ->where('project_id', $project->id)
+            ->where('invoice_id', $partialInvoice->id)
+            ->count()
+    )->toBe(2);
+
+    $this->postJson("/api/admin/projects/{$project->id}/invoices/{$partialInvoice->id}/status", [
+        'status' => 'paid',
+    ])->assertOk();
+
+    $updatedInvoice = $partialInvoice->fresh();
+    expect($updatedInvoice->status)->toBe('paid')
+        ->and((float) $updatedInvoice->partial_amount)->toBe((float) $updatedInvoice->amount);
+
+    // Seeded fully paid invoice remains consistent.
+    expect($paidInvoice->fresh()->status)->toBe('paid');
+});
+
 test('report endpoints dispatch insight stream events', function () {
     [$admin] = seedPhaseSixSevenData();
     Sanctum::actingAs($admin);
@@ -131,10 +246,20 @@ test('report endpoints dispatch insight stream events', function () {
     $this->getJson("/api/admin/reports/profit-loss?from_month={$month}&to_month={$month}")->assertOk();
     $this->getJson("/api/admin/reports/tax-summary?from_month={$month}&to_month={$month}")->assertOk();
     $this->getJson('/api/admin/reports/ar-aging')->assertOk();
+    $this->getJson('/api/admin/reports/trial-balance')->assertOk();
+    $this->getJson('/api/admin/reports/balance-sheet')->assertOk();
+    $this->getJson('/api/admin/reports/cash-flow')->assertOk();
+    $this->getJson('/api/admin/reports/general-ledger')->assertOk();
+    $this->getJson('/api/admin/reports/payment-ledger')->assertOk();
 
     Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.profit_loss');
     Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.tax_summary');
     Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.ar_aging');
+    Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.trial_balance');
+    Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.balance_sheet');
+    Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.cash_flow');
+    Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.general_ledger');
+    Event::assertDispatched(InsightStreamed::class, fn (InsightStreamed $event): bool => $event->stream === 'insight.report.payment_ledger');
 });
 
 test('security audit command dispatches insight stream event', function () {
@@ -150,7 +275,7 @@ test('security audit command dispatches insight stream event', function () {
 });
 
 /**
- * @return array{0: User}
+ * @return array{0: User, 1: Project, 2: Invoice, 3: Invoice}
  */
 function seedPhaseSixSevenData(): array
 {
@@ -170,19 +295,21 @@ function seedPhaseSixSevenData(): array
         'start_date' => $monthStart->copy()->subMonths(4)->toDateString(),
     ]);
 
-    Invoice::query()->create([
+    $paidInvoice = Invoice::query()->create([
         'project_id' => $project->id,
         'invoice_number' => 'INV-PAID-1001',
         'amount' => 42000,
+        'invoice_date' => $monthStart->copy()->addDays(1)->toDateString(),
         'due_date' => $monthStart->copy()->addDays(5)->toDateString(),
         'status' => 'paid',
         'payment_completed_at' => $monthStart->copy()->addDays(8)->toDateTimeString(),
     ]);
 
-    Invoice::query()->create([
+    $partialInvoice = Invoice::query()->create([
         'project_id' => $project->id,
         'invoice_number' => 'INV-AR-1002',
         'amount' => 12000,
+        'invoice_date' => $monthStart->copy()->addDays(2)->toDateString(),
         'partial_amount' => 2000,
         'due_date' => now()->subDays(20)->toDateString(),
         'status' => 'partial',
@@ -192,6 +319,7 @@ function seedPhaseSixSevenData(): array
         'project_id' => $project->id,
         'invoice_number' => 'INV-AR-1003',
         'amount' => 9000,
+        'invoice_date' => $monthStart->copy()->addDays(3)->toDateString(),
         'due_date' => now()->subDays(45)->toDateString(),
         'status' => 'overdue',
     ]);
@@ -200,6 +328,7 @@ function seedPhaseSixSevenData(): array
         'project_id' => $project->id,
         'invoice_number' => 'INV-AR-1004',
         'amount' => 7000,
+        'invoice_date' => $monthStart->copy()->addDays(4)->toDateString(),
         'due_date' => now()->subDays(75)->toDateString(),
         'status' => 'overdue',
     ]);
@@ -208,8 +337,29 @@ function seedPhaseSixSevenData(): array
         'project_id' => $project->id,
         'invoice_number' => 'INV-AR-1005',
         'amount' => 6500,
+        'invoice_date' => $monthStart->copy()->addDays(5)->toDateString(),
         'due_date' => now()->subDays(120)->toDateString(),
         'status' => 'overdue',
+    ]);
+
+    ProjectPayment::query()->create([
+        'project_id' => $project->id,
+        'invoice_id' => $paidInvoice->id,
+        'recorded_by' => $admin->id,
+        'payment_date' => $monthStart->copy()->addDays(8)->toDateString(),
+        'amount' => 42000,
+        'payment_method' => 'bank_transfer',
+        'reference_number' => 'SEED-PAID-1001',
+    ]);
+
+    ProjectPayment::query()->create([
+        'project_id' => $project->id,
+        'invoice_id' => $partialInvoice->id,
+        'recorded_by' => $admin->id,
+        'payment_date' => $monthStart->copy()->addDays(10)->toDateString(),
+        'amount' => 2000,
+        'payment_method' => 'bank_transfer',
+        'reference_number' => 'SEED-PARTIAL-1002',
     ]);
 
     $employeeUser = User::factory()->create(['role' => 'employee']);
@@ -262,5 +412,5 @@ function seedPhaseSixSevenData(): array
         'status' => 'active',
     ]);
 
-    return [$admin];
+    return [$admin, $project, $paidInvoice, $partialInvoice];
 }

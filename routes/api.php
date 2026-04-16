@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\LoanController as AdminLoanController;
 use App\Http\Controllers\Admin\MessageController as AdminMessageController;
 use App\Http\Controllers\Admin\PayrollController as AdminPayrollController;
 use App\Http\Controllers\Admin\ProjectController as AdminProjectController;
+use App\Http\Controllers\Admin\ProjectPaymentController as AdminProjectPaymentController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Analytics\AnomalyController;
@@ -54,6 +55,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::put('projects/{projectId}/invoices/{id}', [AdminInvoiceController::class, 'update']);
         Route::delete('projects/{projectId}/invoices/{id}', [AdminInvoiceController::class, 'destroy']);
         Route::post('projects/{projectId}/invoices/{id}/status', [AdminInvoiceController::class, 'transition']);
+        Route::get('projects/{projectId}/payments', [AdminProjectPaymentController::class, 'index']);
+        Route::post('projects/{projectId}/payments', [AdminProjectPaymentController::class, 'store']);
+        Route::delete('projects/{projectId}/payments/{id}', [AdminProjectPaymentController::class, 'destroy']);
 
         Route::apiResource('expenses', AdminExpenseController::class);
         Route::get('expenses-summary', [AdminExpenseController::class, 'summary']);
@@ -124,6 +128,11 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('reports/profit-loss', [AdminReportController::class, 'profitLoss']);
         Route::get('reports/tax-summary', [AdminReportController::class, 'taxSummary']);
         Route::get('reports/ar-aging', [AdminReportController::class, 'arAging']);
+        Route::get('reports/trial-balance', [AdminReportController::class, 'trialBalance']);
+        Route::get('reports/balance-sheet', [AdminReportController::class, 'balanceSheet']);
+        Route::get('reports/cash-flow', [AdminReportController::class, 'cashFlow']);
+        Route::get('reports/general-ledger', [AdminReportController::class, 'generalLedger']);
+        Route::get('reports/payment-ledger', [AdminReportController::class, 'paymentLedger']);
     });
 
     Route::middleware(['employee', 'ownership'])->prefix('employee')->group(function () {

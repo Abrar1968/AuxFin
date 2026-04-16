@@ -23,6 +23,11 @@ const ADMIN_INSIGHT_EVENTS = [
     'insight.report.profit_loss',
     'insight.report.tax_summary',
     'insight.report.ar_aging',
+    'insight.report.trial_balance',
+    'insight.report.balance_sheet',
+    'insight.report.cash_flow',
+    'insight.report.general_ledger',
+    'insight.report.payment_ledger',
     'insight.security.audit',
 ];
 
@@ -44,7 +49,7 @@ export function useRealTime() {
         configureAuth(token);
         unsubscribeAdmin();
 
-        const notificationsEcho = window.EchoNotifications || window.Echo || window.EchoMain;
+        const notificationsEcho = window.EchoMain || window.EchoNotifications || window.Echo;
         if (notificationsEcho) {
             adminChannel = notificationsEcho.private('admin-broadcast');
             ADMIN_EVENTS.forEach((eventName) => bind(adminChannel, eventName));
@@ -75,7 +80,7 @@ export function useRealTime() {
         configureAuth(token);
         unsubscribeEmployee();
 
-        const echo = window.EchoNotifications || window.Echo || window.EchoMain;
+        const echo = window.EchoMain || window.EchoNotifications || window.Echo;
         if (!echo) {
             return;
         }

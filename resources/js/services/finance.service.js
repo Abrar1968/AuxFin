@@ -19,6 +19,9 @@ export const FinanceService = {
     updateInvoice: (projectId, id, payload) => api.put(`/admin/projects/${projectId}/invoices/${id}`, payload),
     deleteInvoice: (projectId, id) => api.delete(`/admin/projects/${projectId}/invoices/${id}`),
     transitionInvoice: (projectId, id, payload) => api.post(`/admin/projects/${projectId}/invoices/${id}/status`, payload),
+    projectPayments: (projectId, params = {}) => api.get(`/admin/projects/${projectId}/payments`, { params }),
+    recordProjectPayment: (projectId, payload) => api.post(`/admin/projects/${projectId}/payments`, payload),
+    deleteProjectPayment: (projectId, id) => api.delete(`/admin/projects/${projectId}/payments/${id}`),
 
     expenses: (params = {}) => api.get('/admin/expenses', { params }),
     expenseSummary: (params = {}) => api.get('/admin/expenses-summary', { params }),

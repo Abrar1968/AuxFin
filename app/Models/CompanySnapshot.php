@@ -14,6 +14,7 @@ class CompanySnapshot extends Model
     protected $fillable = [
         'snapshot_month',
         'total_revenue',
+        'total_cash_collected',
         'total_payroll',
         'total_opex',
         'gross_profit',
@@ -27,6 +28,7 @@ class CompanySnapshot extends Model
     protected $casts = [
         'snapshot_month' => 'date',
         'total_revenue' => 'decimal:2',
+        'total_cash_collected' => 'decimal:2',
         'total_payroll' => 'decimal:2',
         'total_opex' => 'decimal:2',
         'gross_profit' => 'decimal:2',

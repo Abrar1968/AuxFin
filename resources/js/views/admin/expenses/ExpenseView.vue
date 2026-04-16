@@ -1,22 +1,38 @@
 <template>
-    <section class="space-y-4">
-        <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <div class="flex flex-wrap items-end gap-3">
+    <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Expense Governance</p>
+                <h1 class="text-2xl font-black text-slate-900">Operating Expense Center</h1>
+                <p class="mt-1 text-sm text-slate-600">Control month-wise spend, recurring commitments, and category-level tracking.</p>
+            </div>
+
+            <div class="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                 <div>
-                    <label class="text-xs font-semibold text-slate-600">Month</label>
-                    <input v-model="month" type="date" class="block mt-1 rounded-lg border border-slate-300 px-3 py-2">
+                    <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Month</label>
+                    <input v-model="month" type="date" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                 </div>
-                <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="load">Refresh</button>
+                <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">Refresh</button>
             </div>
+        </header>
 
-            <div class="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
-                <div class="rounded-lg bg-slate-100 p-3">Monthly Total: <strong>{{ number(summary.monthly_total) }}</strong></div>
-                <div class="rounded-lg bg-slate-100 p-3">Recurring Baseline: <strong>{{ number(summary.recurring_total) }}</strong></div>
-            </div>
-        </article>
+        <div class="grid gap-3 sm:grid-cols-3">
+            <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Monthly Total</p>
+                <p class="mt-2 text-2xl font-black text-slate-900">{{ number(summary.monthly_total) }}</p>
+            </article>
+            <article class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Recurring Baseline</p>
+                <p class="mt-2 text-2xl font-black text-indigo-900">{{ number(summary.recurring_total) }}</p>
+            </article>
+            <article class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Variable Spend</p>
+                <p class="mt-2 text-2xl font-black text-amber-800">{{ number(variableTotal) }}</p>
+            </article>
+        </div>
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Add Expense</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Add Expense</h2>
             <form class="mt-3 grid md:grid-cols-3 gap-3" @submit.prevent="createExpense">
                 <input v-model="form.category" required class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Category">
                 <input v-model="form.amount" required type="number" min="0" step="0.01" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Amount">
@@ -36,7 +52,10 @@
             </form>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white overflow-x-auto">
+        <article class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <header class="border-b border-slate-200 px-5 py-4">
+                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Expense Ledger</h3>
+            </header>
             <table class="w-full text-sm">
                 <thead class="bg-slate-100 text-slate-600">
                     <tr>
@@ -49,16 +68,28 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in rows" :key="row.id" class="border-t border-slate-100">
+                    <tr v-for="row in rows" :key="row.id" class="border-t border-slate-100 hover:bg-slate-50/70">
                         <td class="p-3">{{ row.expense_date }}</td>
                         <td class="p-3">{{ row.category }}</td>
                         <td class="p-3">{{ row.description }}</td>
                         <td class="p-3">{{ number(row.amount) }}</td>
-                        <td class="p-3">{{ row.is_recurring ? `${row.recurrence} (${row.next_due_date})` : 'No' }}</td>
+                        <td class="p-3">
+                            <span
+                                v-if="row.is_recurring"
+                                class="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700"
+                            >
+                                {{ row.recurrence }}
+                            </span>
+                            <span v-else class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">No</span>
+                            <p v-if="row.is_recurring" class="mt-1 text-xs text-slate-500">Next: {{ row.next_due_date }}</p>
+                        </td>
                         <td class="p-3 text-right space-x-3">
                             <button class="text-xs font-semibold text-amber-700" @click="openEditModal(row)">Edit</button>
                             <button class="text-xs font-semibold text-rose-700" @click="remove(row.id)">Delete</button>
                         </td>
+                    </tr>
+                    <tr v-if="rows.length === 0">
+                        <td colspan="6" class="p-4 text-center text-slate-500">No expenses recorded for this month.</td>
                     </tr>
                 </tbody>
             </table>
@@ -92,7 +123,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import AppModal from '../../../components/ui/AppModal.vue';
 import { FinanceService } from '../../../services/finance.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
@@ -105,6 +136,7 @@ const rows = ref([]);
 const summary = ref({});
 const showEditModal = ref(false);
 const editExpenseId = ref(null);
+const variableTotal = computed(() => Number(summary.value.monthly_total ?? 0) - Number(summary.value.recurring_total ?? 0));
 
 const form = reactive({
     category: '',

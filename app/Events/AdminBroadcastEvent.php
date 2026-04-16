@@ -4,12 +4,12 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithBroadcasting;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Queue\SerializesModels;
 
-abstract class AdminBroadcastEvent implements ShouldBroadcast
+abstract class AdminBroadcastEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithBroadcasting, InteractsWithSockets, SerializesModels;
 

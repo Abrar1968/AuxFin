@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Invoice;
+use App\Models\ProjectPayment;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,5 +37,10 @@ class Project extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ProjectPayment::class);
     }
 }

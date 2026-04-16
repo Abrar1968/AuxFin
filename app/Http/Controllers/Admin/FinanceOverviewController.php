@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Liability;
+use App\Models\ProjectPayment;
 use App\Models\Project;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -15,13 +16,21 @@ use Illuminate\Http\Request;
 
 class FinanceOverviewController extends Controller
 {
+    /**
+     * @var array<int, string>
+     */
+    private const ACCRUAL_INVOICE_STATUSES = ['sent', 'partial', 'paid', 'overdue'];
+
     public function index(Request $request): JsonResponse
     {
         $monthDate = Carbon::parse((string) ($request->query('month') ?? now()->toDateString()))->startOfMonth();
 
-        $bookedRevenue = (float) Invoice::query()->sum('amount');
-        $recognizedRevenue = (float) Invoice::query()->whereNotNull('payment_completed_at')->sum('amount');
-        $accountsReceivable = max(0, $bookedRevenue - $recognizedRevenue);
+        $accruedRevenue = (float) Invoice::query()
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->sum('amount');
+
+        $cashCollected = (float) ProjectPayment::query()->sum('amount');
+        $accountsReceivable = max(0, $accruedRevenue - $cashCollected);
 
         $expenseMtd = (float) Expense::query()
             ->whereYear('expense_date', $monthDate->year)
@@ -41,14 +50,18 @@ class FinanceOverviewController extends Controller
 
         $projectRows = Project::query()
             ->with('client')
-            ->withSum('invoices as booked_revenue', 'amount')
             ->withSum([
-                'invoices as recognized_revenue' => fn ($query) => $query->whereNotNull('payment_completed_at'),
+                'invoices as booked_revenue' => fn ($query) => $query->whereIn('status', self::ACCRUAL_INVOICE_STATUSES),
             ], 'amount')
+            ->withSum([
+                'invoices as recognized_revenue' => fn ($query) => $query->whereIn('status', self::ACCRUAL_INVOICE_STATUSES),
+            ], 'amount')
+            ->withSum('payments as cash_collected', 'amount')
             ->get()
             ->map(function (Project $project): array {
                 $booked = (float) ($project->booked_revenue ?? 0);
                 $recognized = (float) ($project->recognized_revenue ?? 0);
+                $cash = (float) ($project->cash_collected ?? 0);
 
                 return [
                     'id' => $project->id,
@@ -57,7 +70,9 @@ class FinanceOverviewController extends Controller
                     'status' => $project->status,
                     'booked_revenue' => round($booked, 2),
                     'recognized_revenue' => round($recognized, 2),
-                    'accounts_receivable' => round(max(0, $booked - $recognized), 2),
+                    'accrued_revenue' => round($recognized, 2),
+                    'cash_collected' => round($cash, 2),
+                    'accounts_receivable' => round(max(0, $recognized - $cash), 2),
                 ];
             })
             ->sortByDesc('booked_revenue')
@@ -79,11 +94,13 @@ class FinanceOverviewController extends Controller
                 'projects' => Project::query()->count(),
                 'active_projects' => Project::query()->where('status', 'active')->count(),
                 'overdue_invoices' => Invoice::query()->where('status', 'overdue')->count(),
-                'booked_revenue' => round($bookedRevenue, 2),
-                'recognized_revenue' => round($recognizedRevenue, 2),
+                'booked_revenue' => round($accruedRevenue, 2),
+                'recognized_revenue' => round($accruedRevenue, 2),
+                'accrued_revenue' => round($accruedRevenue, 2),
+                'cash_collected' => round($cashCollected, 2),
                 'accounts_receivable' => round($accountsReceivable, 2),
-                'collection_rate_percent' => $bookedRevenue > 0
-                    ? round(($recognizedRevenue / $bookedRevenue) * 100, 2)
+                'collection_rate_percent' => $accruedRevenue > 0
+                    ? round(($cashCollected / $accruedRevenue) * 100, 2)
                     : 0,
                 'expense_mtd' => round($expenseMtd, 2),
                 'liabilities_outstanding' => round($liabilitiesOutstanding, 2),

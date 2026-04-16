@@ -1,7 +1,38 @@
 <template>
-    <section class="space-y-4">
+    <section class="space-y-5">
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Leave Governance</p>
+                <h1 class="text-2xl font-black text-slate-900">Leave Management Desk</h1>
+                <p class="mt-1 text-sm text-slate-600">Oversee leave intake, approvals, and policy-aligned decision actions.</p>
+            </div>
+
+            <button class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="load">
+                Refresh Requests
+            </button>
+        </header>
+
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total Requests</p>
+                <p class="mt-2 text-2xl font-black text-slate-900">{{ rows.length }}</p>
+            </article>
+            <article class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Pending</p>
+                <p class="mt-2 text-2xl font-black text-amber-800">{{ pendingCount }}</p>
+            </article>
+            <article class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Approved</p>
+                <p class="mt-2 text-2xl font-black text-emerald-800">{{ approvedCount }}</p>
+            </article>
+            <article class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">Rejected</p>
+                <p class="mt-2 text-2xl font-black text-rose-800">{{ rejectedCount }}</p>
+            </article>
+        </div>
+
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 class="font-bold">Create Leave Record</h3>
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Create Leave Record</h2>
             <form class="mt-3 grid md:grid-cols-4 gap-3" @submit.prevent="createLeave">
                 <select v-model="createForm.employee_id" required class="rounded-lg border border-slate-300 px-3 py-2">
                     <option value="">Select employee</option>
@@ -28,20 +59,25 @@
             </form>
         </article>
 
-        <div class="flex flex-wrap items-end gap-3">
+        <article class="rounded-2xl border border-slate-200 bg-white p-4">
+            <div class="flex flex-wrap items-end justify-between gap-3">
             <div>
-                <label class="text-xs font-semibold text-slate-600">Status</label>
-                <select v-model="status" class="block mt-1 rounded-lg border border-slate-300 px-3 py-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Status Filter</label>
+                <select v-model="status" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                     <option value="">All</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
                 </select>
             </div>
-            <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="load">Refresh</button>
-        </div>
+            <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">Refresh</button>
+            </div>
+        </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white overflow-x-auto">
+        <article class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <header class="border-b border-slate-200 px-5 py-4">
+                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Leave Request Ledger</h3>
+            </header>
             <table class="w-full text-sm">
                 <thead class="bg-slate-100 text-slate-600">
                     <tr>
@@ -55,12 +91,16 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in rows" :key="row.id" class="border-t border-slate-100">
+                    <tr v-for="row in rows" :key="row.id" class="border-t border-slate-100 hover:bg-slate-50/70">
                         <td class="p-3">{{ row.employee?.user?.name }}</td>
-                        <td class="p-3">{{ row.leave_type }}</td>
+                        <td class="p-3 capitalize">{{ row.leave_type }}</td>
                         <td class="p-3">{{ row.from_date }} - {{ row.to_date }}</td>
                         <td class="p-3">{{ row.days }}</td>
-                        <td class="p-3">{{ row.status }}</td>
+                        <td class="p-3">
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize" :class="statusClass(row.status)">
+                                {{ row.status }}
+                            </span>
+                        </td>
                         <td class="p-3">{{ row.admin_note ?? '-' }}</td>
                         <td class="p-3 text-right space-x-3">
                             <button
@@ -92,6 +132,9 @@
                                 Delete
                             </button>
                         </td>
+                    </tr>
+                    <tr v-if="rows.length === 0">
+                        <td colspan="7" class="p-4 text-center text-slate-500">No leave requests found for current filter.</td>
                     </tr>
                 </tbody>
             </table>
@@ -171,7 +214,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import AppModal from '../../../components/ui/AppModal.vue';
 import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { EmployeeService } from '../../../services/employee.service';
@@ -207,6 +250,10 @@ const decisionForm = reactive({
     status: 'approved',
     admin_note: '',
 });
+
+const pendingCount = computed(() => rows.value.filter((row) => String(row.status).toLowerCase() === 'pending').length);
+const approvedCount = computed(() => rows.value.filter((row) => String(row.status).toLowerCase() === 'approved').length);
+const rejectedCount = computed(() => rows.value.filter((row) => String(row.status).toLowerCase() === 'rejected').length);
 
 onMounted(async () => {
     await loadEmployees();
@@ -339,5 +386,23 @@ async function confirmDeleteLeave() {
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to delete leave record.'));
     }
+}
+
+function statusClass(status) {
+    const value = String(status ?? '').toLowerCase();
+
+    if (value === 'approved') {
+        return 'bg-emerald-100 text-emerald-700';
+    }
+
+    if (value === 'pending') {
+        return 'bg-amber-100 text-amber-700';
+    }
+
+    if (value === 'rejected') {
+        return 'bg-rose-100 text-rose-700';
+    }
+
+    return 'bg-slate-100 text-slate-700';
 }
 </script>

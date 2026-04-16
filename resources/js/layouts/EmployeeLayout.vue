@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen flex bg-(--bg-base) text-(--text-primary)">
+    <div class="flex h-dvh overflow-hidden bg-(--bg-base) text-(--text-primary)">
         <Sidebar
             role="employee"
             :collapsed="sidebarCollapsed"
@@ -7,9 +7,9 @@
             @close="mobileSidebarOpen = false"
         />
 
-        <div class="flex-1 min-w-0 flex flex-col">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col transition-[padding] duration-300" :class="contentOffsetClass">
             <Topbar @toggle-sidebar="toggleSidebar" />
-            <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+            <main class="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                 <div class="mx-auto w-full max-w-[1400px] space-y-4 md:space-y-5 fin-section-enter">
                 <BreadcrumbNav />
                 <RouterView />
@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterView } from 'vue-router';
 import BreadcrumbNav from '../components/layout/BreadcrumbNav.vue';
 import Sidebar from '../components/layout/Sidebar.vue';
@@ -28,6 +28,10 @@ import Topbar from '../components/layout/Topbar.vue';
 
 const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
+
+const contentOffsetClass = computed(() => {
+    return sidebarCollapsed.value ? 'md:pl-20' : 'md:pl-64';
+});
 
 function toggleSidebar() {
     if (window.matchMedia('(max-width: 767px)').matches) {

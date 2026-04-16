@@ -5,11 +5,11 @@ namespace App\Events;
 use Illuminate\Broadcasting\InteractsWithBroadcasting;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class InsightStreamed implements ShouldBroadcast
+class InsightStreamed implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithBroadcasting, InteractsWithSockets, SerializesModels;
 
@@ -22,7 +22,7 @@ class InsightStreamed implements ShouldBroadcast
             return;
         }
 
-        $connections = collect(['pusher_insights', 'pusher_notifications'])
+        $connections = collect(['pusher', 'pusher_insights', 'pusher_notifications'])
             ->filter(function (string $connection): bool {
                 return filled(config("broadcasting.connections.{$connection}.key"))
                     && filled(config("broadcasting.connections.{$connection}.app_id"));

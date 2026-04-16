@@ -36,9 +36,11 @@ class InvoiceController extends Controller
         $payload = $request->validate([
             'invoice_number' => ['required', 'string', 'max:30', 'unique:invoices,invoice_number'],
             'amount' => ['required', 'numeric', 'min:0.01'],
+            'invoice_date' => ['nullable', 'date'],
             'due_date' => ['required', 'date'],
             'status' => ['nullable', 'in:draft,sent,partial,paid,overdue'],
             'partial_amount' => ['nullable', 'numeric', 'min:0'],
+            'paid_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -46,20 +48,34 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'partial_amount is required when status is partial.'], 422);
         }
 
+        $requestedStatus = $payload['status'] ?? 'draft';
+
         $invoice = Invoice::query()->create([
             'project_id' => $projectId,
             'invoice_number' => $payload['invoice_number'],
             'amount' => $payload['amount'],
+            'invoice_date' => $payload['invoice_date'] ?? now()->toDateString(),
             'due_date' => $payload['due_date'],
-            'status' => $payload['status'] ?? 'draft',
-            'partial_amount' => $payload['partial_amount'] ?? null,
-            'payment_completed_at' => ($payload['status'] ?? null) === 'paid' ? now() : null,
+            'status' => in_array($requestedStatus, ['draft', 'sent', 'overdue'], true) ? $requestedStatus : 'draft',
+            'partial_amount' => null,
+            'payment_completed_at' => null,
             'notes' => $payload['notes'] ?? null,
         ]);
 
+        if (in_array($requestedStatus, ['partial', 'paid'], true)) {
+            $invoice = $this->financeService->transitionInvoice(
+                $invoice,
+                $requestedStatus,
+                isset($payload['partial_amount']) ? (float) $payload['partial_amount'] : null,
+                $payload['paid_at'] ?? null,
+            );
+        } else {
+            $invoice = $this->financeService->syncInvoicePaymentState($invoice, $requestedStatus);
+        }
+
         return response()->json([
             'message' => 'Invoice created successfully.',
-            'invoice' => $invoice->load('project.client'),
+            'invoice' => $invoice->load('project.client', 'payments'),
         ], 201);
     }
 
@@ -74,16 +90,17 @@ class InvoiceController extends Controller
         $payload = $request->validate([
             'invoice_number' => ['sometimes', 'string', 'max:30', 'unique:invoices,invoice_number,'.$invoice->id],
             'amount' => ['sometimes', 'numeric', 'min:0.01'],
+            'invoice_date' => ['sometimes', 'date'],
             'due_date' => ['sometimes', 'date'],
             'notes' => ['nullable', 'string'],
-            'partial_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $invoice->update($payload);
+        $invoice = $this->financeService->syncInvoicePaymentState($invoice);
 
         return response()->json([
             'message' => 'Invoice updated successfully.',
-            'invoice' => $invoice->fresh()->load('project.client'),
+            'invoice' => $invoice->load('project.client', 'payments'),
         ]);
     }
 
@@ -104,10 +121,6 @@ class InvoiceController extends Controller
         if ($payload['status'] === 'partial') {
             if (! array_key_exists('partial_amount', $payload)) {
                 return response()->json(['message' => 'partial_amount is required for partial status.'], 422);
-            }
-
-            if ((float) $payload['partial_amount'] >= (float) $invoice->amount) {
-                return response()->json(['message' => 'partial_amount must be less than invoice amount.'], 422);
             }
         }
 

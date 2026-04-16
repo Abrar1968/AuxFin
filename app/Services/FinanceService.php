@@ -6,22 +6,35 @@ use App\Models\Asset;
 use App\Models\Invoice;
 use App\Models\Liability;
 use App\Models\Project;
+use App\Models\ProjectPayment;
 use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class FinanceService
 {
+    /**
+     * @var array<int, string>
+     */
+    private const ACCRUAL_INVOICE_STATUSES = ['sent', 'partial', 'paid', 'overdue'];
+
     public function projectRevenueSummary(Project $project): array
     {
-        $bookedRevenue = (float) $project->invoices()->sum('amount');
-        $recognizedRevenue = (float) $project->invoices()->whereNotNull('payment_completed_at')->sum('amount');
-        $accountsReceivable = max(0, $bookedRevenue - $recognizedRevenue);
+        $accruedRevenue = (float) $project->invoices()
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->sum('amount');
+
+        $cashCollected = (float) $project->payments()->sum('amount');
+        $accountsReceivable = max(0, $accruedRevenue - $cashCollected);
 
         return [
-            'booked_revenue' => round($bookedRevenue, 2),
-            'recognized_revenue' => round($recognizedRevenue, 2),
+            // Keep legacy keys for compatibility while exposing accrual/cash metrics.
+            'booked_revenue' => round($accruedRevenue, 2),
+            'recognized_revenue' => round($accruedRevenue, 2),
+            'accrued_revenue' => round($accruedRevenue, 2),
+            'cash_collected' => round($cashCollected, 2),
             'accounts_receivable' => round($accountsReceivable, 2),
-            'collection_rate_percent' => $bookedRevenue > 0
-                ? round(($recognizedRevenue / $bookedRevenue) * 100, 2)
+            'collection_rate_percent' => $accruedRevenue > 0
+                ? round(($cashCollected / $accruedRevenue) * 100, 2)
                 : 0,
         ];
     }
@@ -31,30 +44,142 @@ class FinanceService
         string $status,
         ?float $partialAmount = null,
         ?string $paidAt = null,
+        ?array $paymentContext = null,
     ): Invoice {
-        $updates = [
-            'status' => $status,
-        ];
+        $project = $invoice->project;
 
-        if ($status === 'partial') {
-            $updates['partial_amount'] = round((float) $partialAmount, 2);
-            $updates['payment_completed_at'] = null;
-        } elseif ($status === 'paid') {
-            $updates['partial_amount'] = (float) $invoice->amount;
-            $updates['payment_completed_at'] = $paidAt
-                ? Carbon::parse($paidAt)->toDateTimeString()
-                : now();
-        } else {
-            if ($status !== 'overdue') {
-                $updates['partial_amount'] = null;
+        if (! $project instanceof Project) {
+            throw ValidationException::withMessages([
+                'project_id' => ['Invoice does not belong to a valid project.'],
+            ]);
+        }
+
+        if (in_array($status, ['partial', 'paid'], true)) {
+            $paymentAmount = $this->resolvePaymentAmountForTransition($invoice, $status, $partialAmount);
+
+            $this->recordProjectPayment(
+                $project,
+                $invoice,
+                [
+                    'payment_date' => $paidAt ? Carbon::parse($paidAt)->toDateString() : now()->toDateString(),
+                    'amount' => $paymentAmount,
+                    'payment_method' => $paymentContext['payment_method'] ?? 'bank_transfer',
+                    'reference_number' => $paymentContext['reference_number'] ?? null,
+                    'notes' => $paymentContext['notes'] ?? null,
+                ],
+                $paymentContext['recorded_by'] ?? null,
+            );
+        }
+
+        if (in_array($status, ['draft', 'sent', 'overdue'], true)) {
+            $invoice->update(['status' => $status]);
+        }
+
+        return $this->syncInvoicePaymentState($invoice, $status, $paidAt);
+    }
+
+    public function recordProjectPayment(
+        Project $project,
+        ?Invoice $invoice,
+        array $payload,
+        ?int $recordedBy = null,
+    ): ProjectPayment {
+        if ($invoice && (int) $invoice->project_id !== (int) $project->id) {
+            throw ValidationException::withMessages([
+                'invoice_id' => ['Selected invoice does not belong to the provided project.'],
+            ]);
+        }
+
+        $amount = round((float) ($payload['amount'] ?? 0), 2);
+        if ($amount <= 0) {
+            throw ValidationException::withMessages([
+                'amount' => ['Payment amount must be greater than zero.'],
+            ]);
+        }
+
+        if ($invoice) {
+            $alreadyPaid = round((float) $invoice->payments()->sum('amount'), 2);
+            $outstanding = round(max(0, (float) $invoice->amount - $alreadyPaid), 2);
+
+            if ($outstanding <= 0) {
+                throw ValidationException::withMessages([
+                    'invoice_id' => ['Invoice is already fully settled.'],
+                ]);
             }
 
+            if ($amount > $outstanding) {
+                throw ValidationException::withMessages([
+                    'amount' => ['Payment amount cannot exceed invoice outstanding amount.'],
+                ]);
+            }
+        }
+
+        $payment = ProjectPayment::query()->create([
+            'project_id' => $project->id,
+            'invoice_id' => $invoice?->id,
+            'recorded_by' => $recordedBy,
+            'payment_date' => Carbon::parse((string) ($payload['payment_date'] ?? now()->toDateString()))->toDateString(),
+            'amount' => $amount,
+            'payment_method' => (string) ($payload['payment_method'] ?? 'bank_transfer'),
+            'reference_number' => $payload['reference_number'] ?? null,
+            'notes' => $payload['notes'] ?? null,
+        ]);
+
+        if ($invoice) {
+            $this->syncInvoicePaymentState($invoice);
+        }
+
+        return $payment->fresh(['project.client', 'invoice', 'recorder']);
+    }
+
+    public function deleteProjectPayment(ProjectPayment $payment): void
+    {
+        $invoice = $payment->invoice;
+        $payment->delete();
+
+        if ($invoice) {
+            $this->syncInvoicePaymentState($invoice);
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function accrualInvoiceStatuses(): array
+    {
+        return self::ACCRUAL_INVOICE_STATUSES;
+    }
+
+    public function syncInvoicePaymentState(Invoice $invoice, ?string $preferredStatus = null, ?string $paidAt = null): Invoice
+    {
+        $totalPayments = round((float) $invoice->payments()->sum('amount'), 2);
+        $invoiceAmount = round((float) $invoice->amount, 2);
+
+        $updates = [
+            'invoice_date' => $invoice->invoice_date ?? optional($invoice->created_at)->toDateString() ?? now()->toDateString(),
+        ];
+
+        if ($totalPayments <= 0) {
+            $updates['partial_amount'] = null;
+            $updates['payment_completed_at'] = null;
+            $updates['status'] = in_array($preferredStatus, ['draft', 'sent', 'overdue'], true)
+                ? $preferredStatus
+                : 'draft';
+        } elseif ($totalPayments >= $invoiceAmount) {
+            $updates['partial_amount'] = $invoiceAmount;
+            $updates['status'] = 'paid';
+            $updates['payment_completed_at'] = $paidAt
+                ? Carbon::parse($paidAt)->toDateTimeString()
+                : ($invoice->payment_completed_at ?? now()->toDateTimeString());
+        } else {
+            $updates['partial_amount'] = $totalPayments;
+            $updates['status'] = 'partial';
             $updates['payment_completed_at'] = null;
         }
 
         $invoice->update($updates);
 
-        return $invoice->fresh(['project.client']);
+        return $invoice->fresh(['project.client', 'payments']);
     }
 
     public function processLiabilityPayment(Liability $liability, ?float $paymentAmount = null): Liability
@@ -121,5 +246,38 @@ class FinanceService
         ]);
 
         return $asset->fresh();
+    }
+
+    private function resolvePaymentAmountForTransition(Invoice $invoice, string $status, ?float $partialAmount): float
+    {
+        $paidSoFar = round((float) $invoice->payments()->sum('amount'), 2);
+        $invoiceAmount = round((float) $invoice->amount, 2);
+        $outstanding = round(max(0, $invoiceAmount - $paidSoFar), 2);
+
+        if ($outstanding <= 0) {
+            throw ValidationException::withMessages([
+                'status' => ['Invoice is already fully settled.'],
+            ]);
+        }
+
+        if ($status === 'paid') {
+            return $outstanding;
+        }
+
+        $candidate = round((float) ($partialAmount ?? 0), 2);
+
+        if ($candidate <= 0) {
+            throw ValidationException::withMessages([
+                'partial_amount' => ['Payment amount must be greater than zero.'],
+            ]);
+        }
+
+        if ($candidate >= $outstanding) {
+            throw ValidationException::withMessages([
+                'partial_amount' => ['Partial payment must be less than invoice outstanding amount.'],
+            ]);
+        }
+
+        return $candidate;
     }
 }

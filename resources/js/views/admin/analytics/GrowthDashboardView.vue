@@ -1,9 +1,13 @@
 <template>
     <section class="space-y-5">
-        <div class="flex items-center justify-between gap-3">
-            <h3 class="text-lg font-bold">Growth Velocity Dashboard</h3>
-            <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="load">Refresh</button>
-        </div>
+        <header class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Growth Intelligence</p>
+                <h1 class="text-2xl font-black text-slate-900">Growth Velocity Dashboard</h1>
+                <p class="mt-1 text-sm text-slate-600">Monitor directional momentum across revenue, margin, workforce, and efficiency quality signals.</p>
+            </div>
+            <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">Refresh</button>
+        </header>
 
         <div v-if="loading" class="grid gap-3">
             <SkeletonLoader height="16" />
@@ -13,18 +17,18 @@
         <template v-else>
             <div class="grid md:grid-cols-3 gap-3">
                 <article v-for="item in velocityCards" :key="item.label" class="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p class="text-xs uppercase tracking-wide text-slate-500">{{ item.label }}</p>
-                    <p class="text-xl font-bold mt-1">{{ item.value }}%</p>
+                    <p class="text-xs uppercase tracking-[0.12em] text-slate-500">{{ item.label }}</p>
+                    <p class="mt-1 text-xl font-black text-slate-900">{{ item.value }}%</p>
                 </article>
             </div>
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5">
-                <h4 class="font-bold">Net Profit Trend</h4>
+                <h4 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Net Profit Trend</h4>
                 <LineChart :values="netProfitSeries" color="#16a34a" :height="200" />
             </article>
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5">
-                <h4 class="font-bold">Headcount Trend</h4>
+                <h4 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Headcount Trend</h4>
                 <BarChart :labels="monthLabels" :values="headcountSeries" :height="200" />
             </article>
 
@@ -48,7 +52,7 @@
             </div>
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5">
-                <h4 class="font-bold">Automated Recommendations</h4>
+                <h4 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Automated Recommendations</h4>
                 <ul class="mt-3 space-y-2 text-sm">
                     <li v-for="item in recommendations" :key="item" class="rounded-lg bg-slate-100 px-3 py-2">{{ item }}</li>
                 </ul>

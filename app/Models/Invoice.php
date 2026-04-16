@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
@@ -14,6 +15,7 @@ class Invoice extends Model
         'project_id',
         'invoice_number',
         'amount',
+        'invoice_date',
         'due_date',
         'status',
         'partial_amount',
@@ -24,6 +26,7 @@ class Invoice extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'partial_amount' => 'decimal:2',
+        'invoice_date' => 'date',
         'due_date' => 'date',
         'payment_completed_at' => 'datetime',
     ];
@@ -33,8 +36,18 @@ class Invoice extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ProjectPayment::class);
+    }
+
     public function scopeRecognized($query)
     {
-        return $query->whereNotNull('payment_completed_at');
+        return $query->whereNotNull('invoice_date');
+    }
+
+    public function scopeAccrued($query)
+    {
+        return $query->whereNotNull('invoice_date');
     }
 }
