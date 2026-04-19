@@ -310,3 +310,76 @@ export function exportPaymentLedgerPdf(payload, fileName = null) {
 
     doc.save(filename);
 }
+
+function normalizeList(values) {
+    if (!Array.isArray(values) || values.length === 0) {
+        return '-';
+    }
+
+    return values.map((value) => `- ${String(value ?? '').trim()}`).join('\n');
+}
+
+function exportManualPdf(payload, fallbackTitle, fallbackFileName) {
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const filename = fallbackFileName;
+    const title = payload?.title ?? fallbackTitle;
+    const generatedAt = payload?.generated_at
+        ? new Date(payload.generated_at).toLocaleString()
+        : new Date().toLocaleString();
+
+    titleBlock(doc, title, `Generated: ${generatedAt}`);
+
+    autoTable(doc, {
+        startY: 72,
+        head: [['Section', 'Route', 'Purpose', 'Quick Workflow', 'Demo Input', 'Expected Output']],
+        body: (payload?.sections ?? []).map((section) => [
+            section.name ?? '-',
+            section.route ?? '-',
+            section.purpose ?? '-',
+            normalizeList(section.workflow),
+            normalizeList(section.demo_input),
+            normalizeList(section.expected_output),
+        ]),
+        styles: { fontSize: 7, cellPadding: 4, valign: 'top' },
+        headStyles: { fillColor: [24, 39, 72] },
+        columnStyles: {
+            0: { cellWidth: 72 },
+            1: { cellWidth: 70 },
+            2: { cellWidth: 108 },
+            3: { cellWidth: 110 },
+            4: { cellWidth: 100 },
+            5: { cellWidth: 100 },
+        },
+    });
+
+    autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 12,
+        head: [['Equation', 'Formula', 'Demo Input', 'Demo Output']],
+        body: (payload?.equations ?? []).map((equation) => [
+            equation.name ?? '-',
+            equation.formula ?? '-',
+            equation.demo_input ?? '-',
+            equation.demo_output ?? '-',
+        ]),
+        styles: { fontSize: 8, cellPadding: 5, valign: 'top' },
+        headStyles: { fillColor: [12, 94, 62] },
+        columnStyles: {
+            0: { cellWidth: 120 },
+            1: { cellWidth: 150 },
+            2: { cellWidth: 120 },
+            3: { cellWidth: 120 },
+        },
+    });
+
+    doc.save(filename);
+}
+
+export function exportAdminManualPdf(payload, fileName = null) {
+    const filename = fileName ?? 'admin-docs-manual.pdf';
+    exportManualPdf(payload, 'Superadmin/Admin Operations Manual', filename);
+}
+
+export function exportEmployeeManualPdf(payload, fileName = null) {
+    const filename = fileName ?? 'employee-docs-manual.pdf';
+    exportManualPdf(payload, 'Employee Self-Service Manual', filename);
+}

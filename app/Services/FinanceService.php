@@ -8,6 +8,7 @@ use App\Models\Liability;
 use App\Models\Project;
 use App\Models\ProjectPayment;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class FinanceService
@@ -97,39 +98,142 @@ class FinanceService
             ]);
         }
 
-        if ($invoice) {
-            $alreadyPaid = round((float) $invoice->payments()->sum('amount'), 2);
-            $outstanding = round(max(0, (float) $invoice->amount - $alreadyPaid), 2);
+        $paymentDate = Carbon::parse((string) ($payload['payment_date'] ?? now()->toDateString()))->toDateString();
+        $paymentMethod = (string) ($payload['payment_method'] ?? 'bank_transfer');
+        $referenceNumber = $payload['reference_number'] ?? null;
+        $notes = $payload['notes'] ?? null;
 
-            if ($outstanding <= 0) {
-                throw ValidationException::withMessages([
-                    'invoice_id' => ['Invoice is already fully settled.'],
+        return DB::transaction(function () use (
+            $project,
+            $invoice,
+            $amount,
+            $recordedBy,
+            $paymentDate,
+            $paymentMethod,
+            $referenceNumber,
+            $notes,
+        ): ProjectPayment {
+            $appliedPaymentId = null;
+            $remainingAmount = $amount;
+
+            if ($invoice) {
+                $alreadyPaid = round((float) $invoice->payments()->sum('amount'), 2);
+                $outstanding = round(max(0, (float) $invoice->amount - $alreadyPaid), 2);
+
+                if ($outstanding <= 0) {
+                    throw ValidationException::withMessages([
+                        'invoice_id' => ['Invoice is already fully settled.'],
+                    ]);
+                }
+
+                if ($amount > $outstanding) {
+                    throw ValidationException::withMessages([
+                        'amount' => ['Payment amount cannot exceed invoice outstanding amount.'],
+                    ]);
+                }
+
+                $applied = $this->applyProjectAdvancesToInvoice($project, $invoice, $amount, $paymentDate);
+                $remainingAmount = (float) $applied['remaining'];
+                $appliedPaymentId = $applied['applied_payment_id'];
+            }
+
+            $createdPayment = null;
+            if ($remainingAmount > 0) {
+                $createdPayment = ProjectPayment::query()->create([
+                    'project_id' => $project->id,
+                    'invoice_id' => $invoice?->id,
+                    'recorded_by' => $recordedBy,
+                    'payment_date' => $paymentDate,
+                    'amount' => round($remainingAmount, 2),
+                    'payment_method' => $paymentMethod,
+                    'reference_number' => $referenceNumber,
+                    'notes' => $notes,
                 ]);
             }
 
-            if ($amount > $outstanding) {
-                throw ValidationException::withMessages([
-                    'amount' => ['Payment amount cannot exceed invoice outstanding amount.'],
-                ]);
+            if ($invoice) {
+                $this->syncInvoicePaymentState($invoice);
             }
+
+            if ($createdPayment instanceof ProjectPayment) {
+                return $createdPayment->fresh(['project.client', 'invoice', 'recorder']);
+            }
+
+            if ($appliedPaymentId) {
+                return ProjectPayment::query()
+                    ->with(['project.client', 'invoice', 'recorder'])
+                    ->findOrFail($appliedPaymentId);
+            }
+
+            throw ValidationException::withMessages([
+                'amount' => ['Unable to apply payment amount.'],
+            ]);
+        });
+    }
+
+    /**
+     * @return array{remaining: float, applied_payment_id: int|null}
+     */
+    private function applyProjectAdvancesToInvoice(Project $project, Invoice $invoice, float $amount, string $paymentDate): array
+    {
+        $remaining = round($amount, 2);
+        $appliedPaymentId = null;
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ProjectPayment> $advancePayments */
+        $advancePayments = ProjectPayment::query()
+            ->where('project_id', $project->id)
+            ->whereNull('invoice_id')
+            ->where('amount', '>', 0)
+            ->whereDate('payment_date', '<=', $paymentDate)
+            ->orderBy('payment_date')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advancePayments as $advancePayment) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $available = round((float) $advancePayment->amount, 2);
+            if ($available <= 0) {
+                continue;
+            }
+
+            $applyAmount = round(min($remaining, $available), 2);
+
+            if ($applyAmount >= $available) {
+                $advancePayment->update([
+                    'invoice_id' => $invoice->id,
+                ]);
+
+                $appliedPaymentId = (int) $advancePayment->id;
+            } else {
+                $advancePayment->update([
+                    'amount' => round($available - $applyAmount, 2),
+                ]);
+
+                $linkedAdvance = ProjectPayment::query()->create([
+                    'project_id' => $project->id,
+                    'invoice_id' => $invoice->id,
+                    'recorded_by' => $advancePayment->recorded_by,
+                    'payment_date' => optional($advancePayment->payment_date)->toDateString() ?? $paymentDate,
+                    'amount' => $applyAmount,
+                    'payment_method' => $advancePayment->payment_method,
+                    'reference_number' => $advancePayment->reference_number,
+                    'notes' => $advancePayment->notes,
+                ]);
+
+                $appliedPaymentId = (int) $linkedAdvance->id;
+            }
+
+            $remaining = round($remaining - $applyAmount, 2);
         }
 
-        $payment = ProjectPayment::query()->create([
-            'project_id' => $project->id,
-            'invoice_id' => $invoice?->id,
-            'recorded_by' => $recordedBy,
-            'payment_date' => Carbon::parse((string) ($payload['payment_date'] ?? now()->toDateString()))->toDateString(),
-            'amount' => $amount,
-            'payment_method' => (string) ($payload['payment_method'] ?? 'bank_transfer'),
-            'reference_number' => $payload['reference_number'] ?? null,
-            'notes' => $payload['notes'] ?? null,
-        ]);
-
-        if ($invoice) {
-            $this->syncInvoicePaymentState($invoice);
-        }
-
-        return $payment->fresh(['project.client', 'invoice', 'recorder']);
+        return [
+            'remaining' => max(0, $remaining),
+            'applied_payment_id' => $appliedPaymentId,
+        ];
     }
 
     public function deleteProjectPayment(ProjectPayment $payment): void

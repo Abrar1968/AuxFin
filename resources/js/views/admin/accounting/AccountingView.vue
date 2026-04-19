@@ -116,12 +116,18 @@
                         <p class="mt-2">Cash &amp; Bank: <strong>{{ number(balanceSheet.assets?.cash_and_bank) }}</strong></p>
                         <p>Accounts Receivable: <strong>{{ number(balanceSheet.assets?.accounts_receivable) }}</strong></p>
                         <p>Fixed Assets: <strong>{{ number(balanceSheet.assets?.fixed_assets) }}</strong></p>
+                        <p>Fixed Assets (Gross): <strong>{{ number(balanceSheet.assets?.fixed_assets_gross) }}</strong></p>
+                        <p>Accumulated Depreciation: <strong>{{ number(balanceSheet.assets?.accumulated_depreciation) }}</strong></p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Liabilities</p>
                         <p class="mt-2">Outstanding: <strong>{{ number(balanceSheet.liabilities?.outstanding_liabilities) }}</strong></p>
                         <p>Bank Overdraft: <strong>{{ number(balanceSheet.liabilities?.bank_overdraft) }}</strong></p>
+                        <p>Unearned Revenue: <strong>{{ number(balanceSheet.liabilities?.unearned_revenue) }}</strong></p>
+                        <p>Salary Payable: <strong>{{ number(balanceSheet.liabilities?.salary_payable) }}</strong></p>
+                        <p>Payroll Tax Payable: <strong>{{ number(balanceSheet.liabilities?.payroll_tax_payable) }}</strong></p>
+                        <p>Payroll Recoveries Reserve: <strong>{{ number(balanceSheet.liabilities?.payroll_recoveries_reserve) }}</strong></p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -166,7 +172,7 @@
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">General Ledger (Revenue &amp; Collections)</h2>
+                    <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">General Ledger (Accrual Journal)</h2>
                     <div class="flex flex-wrap gap-2">
                         <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold" @click="downloadGeneralLedgerPdf">PDF</button>
                         <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold" @click="downloadGeneralLedgerCsv">CSV</button>

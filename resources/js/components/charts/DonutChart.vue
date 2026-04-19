@@ -1,5 +1,5 @@
 <template>
-    <svg viewBox="0 0 42 42" class="w-full max-w-[220px] mx-auto">
+    <svg viewBox="0 0 42 42" class="w-full max-w-55 mx-auto">
         <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#e2e8f0" stroke-width="5"></circle>
         <circle
             cx="21"

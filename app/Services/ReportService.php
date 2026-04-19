@@ -20,10 +20,38 @@ class ReportService
      */
     private const ACCRUAL_INVOICE_STATUSES = ['sent', 'partial', 'paid', 'overdue'];
 
+    /**
+     * @var array<int, string>
+     */
+    private const PAYROLL_ACCRUAL_STATUSES = ['processed', 'paid'];
+
+    /**
+     * @var array<string, string>
+     */
+    private const ACCOUNT_NAMES = [
+        '1100' => 'Cash and Bank',
+        '1200' => 'Accounts Receivable',
+        '1500' => 'Fixed Assets (Gross)',
+        '1590' => 'Accumulated Depreciation',
+        '2100' => 'Outstanding Liabilities',
+        '2200' => 'Bank Overdraft',
+        '2300' => 'Unearned Revenue',
+        '2400' => 'Salary Payable',
+        '2450' => 'Payroll Tax Payable',
+        '2460' => 'Payroll Recoveries Reserve',
+        '3100' => 'Retained Earnings / Opening Equity',
+        '4100' => 'Service Revenue',
+        '5100' => 'Payroll Expense',
+        '5200' => 'Operating Expense',
+        '5300' => 'Depreciation Expense',
+        '5400' => 'Liability Finance Cost',
+    ];
+
     public function profitLoss(?string $fromMonth = null, ?string $toMonth = null): array
     {
         [$from, $to] = $this->resolveRange($fromMonth, $toMonth, 6);
         $taxRate = $this->corporateTaxRate();
+        $depreciationSeries = $this->depreciationSeries($to->copy()->endOfMonth());
 
         $rows = [];
         $totals = [
@@ -31,6 +59,7 @@ class ReportService
             'cash_collected' => 0.0,
             'payroll' => 0.0,
             'opex' => 0.0,
+            'depreciation' => 0.0,
             'liability_cost' => 0.0,
             'gross_profit' => 0.0,
             'net_profit' => 0.0,
@@ -42,30 +71,19 @@ class ReportService
             $monthStart = $month->copy()->startOfMonth();
             $monthEnd = $month->copy()->endOfMonth();
 
-            $revenue = (float) Invoice::query()
-                ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
-                ->whereBetween('invoice_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                ->sum('amount');
-
+            $revenue = $this->accruedRevenueForPeriod($monthStart, $monthEnd);
             $cashCollected = (float) ProjectPayment::query()
                 ->whereBetween('payment_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                 ->sum('amount');
 
-            $payroll = (float) SalaryMonth::query()
-                ->whereDate('month', $monthStart->toDateString())
-                ->sum('net_payable');
+            $payrollComponents = $this->payrollAccruedComponentsForMonth($monthStart);
+            $payroll = (float) $payrollComponents['gross'];
 
-            $opex = (float) Expense::query()
-                ->whereBetween('expense_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                ->sum('amount');
+            $opexBase = $this->operatingExpenseForPeriod($monthStart, $monthEnd);
+            $depreciation = (float) ($depreciationSeries[$monthStart->format('Y-m')] ?? 0.0);
+            $opex = $opexBase + $depreciation;
 
-            $liabilityCost = (float) Liability::query()
-                ->whereDate('start_date', '<=', $monthEnd->toDateString())
-                ->where(function ($query) use ($monthStart): void {
-                    $query->whereNull('end_date')
-                        ->orWhereDate('end_date', '>=', $monthStart->toDateString());
-                })
-                ->sum('monthly_payment');
+            $liabilityCost = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
 
             $grossProfit = $revenue - $payroll;
             $netProfit = $grossProfit - $opex - $liabilityCost;
@@ -78,6 +96,7 @@ class ReportService
                 'cash_collected' => round($cashCollected, 2),
                 'payroll' => round($payroll, 2),
                 'opex' => round($opex, 2),
+                'depreciation' => round($depreciation, 2),
                 'liability_cost' => round($liabilityCost, 2),
                 'gross_profit' => round($grossProfit, 2),
                 'net_profit' => round($netProfit, 2),
@@ -109,6 +128,7 @@ class ReportService
     {
         [$from, $to] = $this->resolveRange($fromMonth, $toMonth, 6);
         $taxRate = $this->corporateTaxRate();
+        $depreciationSeries = $this->depreciationSeries($to->copy()->endOfMonth());
 
         $rows = [];
         $totals = [
@@ -121,34 +141,16 @@ class ReportService
             $monthStart = $month->copy()->startOfMonth();
             $monthEnd = $month->copy()->endOfMonth();
 
-            $revenue = (float) Invoice::query()
-                ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
-                ->whereBetween('invoice_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                ->sum('amount');
-
-            $payroll = (float) SalaryMonth::query()
-                ->whereDate('month', $monthStart->toDateString())
-                ->sum('net_payable');
-
-            $opex = (float) Expense::query()
-                ->whereBetween('expense_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                ->sum('amount');
-
-            $liabilityCost = (float) Liability::query()
-                ->whereDate('start_date', '<=', $monthEnd->toDateString())
-                ->where(function ($query) use ($monthStart): void {
-                    $query->whereNull('end_date')
-                        ->orWhereDate('end_date', '>=', $monthStart->toDateString());
-                })
-                ->sum('monthly_payment');
+            $revenue = $this->accruedRevenueForPeriod($monthStart, $monthEnd);
+            $payrollComponents = $this->payrollAccruedComponentsForMonth($monthStart);
+            $payroll = (float) $payrollComponents['gross'];
+            $payrollTds = (float) $payrollComponents['tds'];
+            $opex = $this->operatingExpenseForPeriod($monthStart, $monthEnd) + (float) ($depreciationSeries[$monthStart->format('Y-m')] ?? 0.0);
+            $liabilityCost = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
 
             $netProfit = $revenue - $payroll - $opex - $liabilityCost;
             $taxableProfit = max(0, $netProfit);
             $corporateTax = $taxableProfit * ($taxRate / 100);
-
-            $payrollTds = (float) SalaryMonth::query()
-                ->whereDate('month', $monthStart->toDateString())
-                ->sum('tds_deduction');
 
             $row = [
                 'month' => $monthStart->format('Y-m'),
@@ -180,6 +182,7 @@ class ReportService
     public function arAging(?string $asOfDate = null): array
     {
         $asOf = $asOfDate ? Carbon::parse($asOfDate)->endOfDay() : now()->endOfDay();
+        $asOfDateString = $asOf->toDateString();
 
         $buckets = [
             '0_30d' => 0.0,
@@ -192,8 +195,11 @@ class ReportService
 
         $invoices = Invoice::query()
             ->with(['project.client'])
-            ->withSum('payments as paid_amount', 'amount')
+            ->withSum([
+                'payments as paid_amount' => fn ($query) => $query->whereDate('payment_date', '<=', $asOfDateString),
+            ], 'amount')
             ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->whereDate('invoice_date', '<=', $asOfDateString)
             ->orderBy('due_date')
             ->get();
 
@@ -249,69 +255,152 @@ class ReportService
     public function trialBalance(?string $asOfDate = null): array
     {
         $asOf = $asOfDate ? Carbon::parse($asOfDate)->endOfDay() : now()->endOfDay();
-        $balanceSheet = $this->balanceSheet($asOf->toDateString());
+        $asOfDateString = $asOf->toDateString();
+        $asOfMonthStart = $asOf->copy()->startOfMonth();
 
-        $lines = [
+        $accruedRevenue = $this->accruedRevenueAsOf($asOfDateString);
+        $linkedCollections = $this->linkedCollectionsAsOf($asOfDateString);
+        $unearnedRevenue = $this->unearnedCollectionsAsOf($asOfDateString);
+        $accountsReceivable = max(0, $accruedRevenue - $linkedCollections);
+
+        $assetPurchases = $this->assetPurchasesAsOf($asOfDateString);
+        $accumulatedDepreciation = $this->accumulatedDepreciationAsOf($asOfDateString);
+        $operatingExpense = $this->operatingExpenseAsOf($asOfDateString);
+
+        $payrollAsOf = $this->payrollAccruedComponentsAsOf($asOfMonthStart);
+        $salaryPayable = $this->salaryPayableAsOf($asOfMonthStart, (float) $payrollAsOf['net']);
+        $payrollTaxPayable = (float) $payrollAsOf['tax'];
+        $payrollRecoveries = (float) $payrollAsOf['recoveries'];
+
+        $liabilityCostAsOf = $this->liabilityCostAsOf($asOf);
+        $outstandingLiabilities = (float) Liability::query()
+            ->whereDate('start_date', '<=', $asOfDateString)
+            ->where('outstanding', '>', 0)
+            ->sum('outstanding');
+
+        $cashPosition = $this->cashPositionAsOf($asOf);
+        $cashAndBank = max(0, $cashPosition);
+        $bankOverdraft = max(0, -$cashPosition);
+
+        $lines = collect([
             [
                 'account_code' => '1100',
-                'account_name' => 'Cash and Bank',
-                'debit' => (float) ($balanceSheet['assets']['cash_and_bank'] ?? 0),
+                'account_name' => $this->accountName('1100'),
+                'debit' => $cashAndBank,
                 'credit' => 0.0,
             ],
             [
                 'account_code' => '1200',
-                'account_name' => 'Accounts Receivable',
-                'debit' => (float) ($balanceSheet['assets']['accounts_receivable'] ?? 0),
+                'account_name' => $this->accountName('1200'),
+                'debit' => $accountsReceivable,
                 'credit' => 0.0,
             ],
             [
                 'account_code' => '1500',
-                'account_name' => 'Fixed Assets',
-                'debit' => (float) ($balanceSheet['assets']['fixed_assets'] ?? 0),
+                'account_name' => $this->accountName('1500'),
+                'debit' => $assetPurchases,
                 'credit' => 0.0,
+            ],
+            [
+                'account_code' => '1590',
+                'account_name' => $this->accountName('1590'),
+                'debit' => 0.0,
+                'credit' => $accumulatedDepreciation,
             ],
             [
                 'account_code' => '2100',
-                'account_name' => 'Liabilities Outstanding',
+                'account_name' => $this->accountName('2100'),
                 'debit' => 0.0,
-                'credit' => (float) ($balanceSheet['liabilities']['outstanding_liabilities'] ?? 0),
+                'credit' => $outstandingLiabilities,
             ],
             [
                 'account_code' => '2200',
-                'account_name' => 'Bank Overdraft',
+                'account_name' => $this->accountName('2200'),
                 'debit' => 0.0,
-                'credit' => (float) ($balanceSheet['liabilities']['bank_overdraft'] ?? 0),
+                'credit' => $bankOverdraft,
             ],
-        ];
-
-        $equity = (float) ($balanceSheet['equity']['retained_earnings'] ?? 0);
-        if ($equity >= 0) {
-            $lines[] = [
-                'account_code' => '3100',
-                'account_name' => 'Retained Earnings',
+            [
+                'account_code' => '2300',
+                'account_name' => $this->accountName('2300'),
                 'debit' => 0.0,
-                'credit' => $equity,
-            ];
-        } else {
-            $lines[] = [
-                'account_code' => '3100',
-                'account_name' => 'Retained Earnings (Deficit)',
-                'debit' => abs($equity),
+                'credit' => $unearnedRevenue,
+            ],
+            [
+                'account_code' => '2400',
+                'account_name' => $this->accountName('2400'),
+                'debit' => 0.0,
+                'credit' => $salaryPayable,
+            ],
+            [
+                'account_code' => '2450',
+                'account_name' => $this->accountName('2450'),
+                'debit' => 0.0,
+                'credit' => $payrollTaxPayable,
+            ],
+            [
+                'account_code' => '2460',
+                'account_name' => $this->accountName('2460'),
+                'debit' => 0.0,
+                'credit' => $payrollRecoveries,
+            ],
+            [
+                'account_code' => '4100',
+                'account_name' => $this->accountName('4100'),
+                'debit' => 0.0,
+                'credit' => $accruedRevenue,
+            ],
+            [
+                'account_code' => '5100',
+                'account_name' => $this->accountName('5100'),
+                'debit' => (float) $payrollAsOf['gross'],
                 'credit' => 0.0,
-            ];
+            ],
+            [
+                'account_code' => '5200',
+                'account_name' => $this->accountName('5200'),
+                'debit' => $operatingExpense,
+                'credit' => 0.0,
+            ],
+            [
+                'account_code' => '5300',
+                'account_name' => $this->accountName('5300'),
+                'debit' => $accumulatedDepreciation,
+                'credit' => 0.0,
+            ],
+            [
+                'account_code' => '5400',
+                'account_name' => $this->accountName('5400'),
+                'debit' => $liabilityCostAsOf,
+                'credit' => 0.0,
+            ],
+        ])->map(static fn (array $line): array => [
+            'account_code' => $line['account_code'],
+            'account_name' => $line['account_name'],
+            'debit' => round(max(0, (float) $line['debit']), 2),
+            'credit' => round(max(0, (float) $line['credit']), 2),
+        ])->filter(static fn (array $line): bool => $line['debit'] > 0 || $line['credit'] > 0)->values();
+
+        $preDebit = round((float) $lines->sum('debit'), 2);
+        $preCredit = round((float) $lines->sum('credit'), 2);
+        $difference = round($preDebit - $preCredit, 2);
+
+        if ($difference > 0.01) {
+            $lines->push([
+                'account_code' => '3100',
+                'account_name' => $this->accountName('3100'),
+                'debit' => 0.0,
+                'credit' => round($difference, 2),
+            ]);
+        } elseif ($difference < -0.01) {
+            $lines->push([
+                'account_code' => '3100',
+                'account_name' => $this->accountName('3100'),
+                'debit' => round(abs($difference), 2),
+                'credit' => 0.0,
+            ]);
         }
 
-        $normalizedLines = collect($lines)
-            ->map(static fn (array $line): array => [
-                'account_code' => $line['account_code'],
-                'account_name' => $line['account_name'],
-                'debit' => round((float) $line['debit'], 2),
-                'credit' => round((float) $line['credit'], 2),
-            ])
-            ->filter(static fn (array $line): bool => $line['debit'] > 0 || $line['credit'] > 0)
-            ->values()
-            ->all();
-
+        $normalizedLines = $lines->values()->all();
         $totalDebit = round((float) collect($normalizedLines)->sum('debit'), 2);
         $totalCredit = round((float) collect($normalizedLines)->sum('credit'), 2);
 
@@ -331,42 +420,35 @@ class ReportService
     {
         $asOf = $asOfDate ? Carbon::parse($asOfDate)->endOfDay() : now()->endOfDay();
         $asOfDateString = $asOf->toDateString();
+        $asOfMonthStart = $asOf->copy()->startOfMonth();
 
-        $accruedRevenue = (float) Invoice::query()
-            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
-            ->whereDate('invoice_date', '<=', $asOfDateString)
-            ->sum('amount');
+        $accruedRevenue = $this->accruedRevenueAsOf($asOfDateString);
+        $linkedCollections = $this->linkedCollectionsAsOf($asOfDateString);
+        $unearnedRevenue = $this->unearnedCollectionsAsOf($asOfDateString);
 
-        $cashCollected = (float) ProjectPayment::query()
-            ->whereDate('payment_date', '<=', $asOfDateString)
-            ->sum('amount');
+        $accountsReceivable = max(0, $accruedRevenue - $linkedCollections);
+        $assetPurchases = $this->assetPurchasesAsOf($asOfDateString);
+        $accumulatedDepreciation = $this->accumulatedDepreciationAsOf($asOfDateString);
+        $fixedAssetsNet = max(0, $assetPurchases - $accumulatedDepreciation);
 
-        $payrollPaid = (float) SalaryMonth::query()
-            ->whereDate('month', '<=', $asOf->copy()->startOfMonth()->toDateString())
-            ->sum('net_payable');
+        $payrollAsOf = $this->payrollAccruedComponentsAsOf($asOfMonthStart);
+        $salaryPayable = $this->salaryPayableAsOf($asOfMonthStart, (float) $payrollAsOf['net']);
+        $payrollTaxPayable = (float) $payrollAsOf['tax'];
+        $payrollRecoveries = (float) $payrollAsOf['recoveries'];
 
-        $opexPaid = (float) Expense::query()
-            ->whereDate('expense_date', '<=', $asOfDateString)
-            ->sum('amount');
-
-        $liabilityPrincipalPaid = $this->liabilityPrincipalPaidAsOf($asOf);
-        $netCashPosition = $cashCollected - $payrollPaid - $opexPaid - $liabilityPrincipalPaid;
-
-        $cashAndBank = max(0, $netCashPosition);
-        $bankOverdraft = max(0, -$netCashPosition);
-        $accountsReceivable = max(0, $accruedRevenue - $cashCollected);
-
-        $fixedAssets = (float) Asset::query()
-            ->whereDate('purchase_date', '<=', $asOfDateString)
-            ->sum('current_book_value');
-
-        $outstandingLiabilities = (float) Liability::query()
+        $liabilitiesOutstanding = (float) Liability::query()
             ->whereDate('start_date', '<=', $asOfDateString)
             ->where('outstanding', '>', 0)
             ->sum('outstanding');
 
-        $totalAssets = $cashAndBank + $accountsReceivable + $fixedAssets;
-        $totalLiabilities = $outstandingLiabilities + $bankOverdraft;
+        $cashPosition = $this->cashPositionAsOf($asOf);
+        $cashAndBank = max(0, $cashPosition);
+        $bankOverdraft = max(0, -$cashPosition);
+
+        $totalAssets = $cashAndBank + $accountsReceivable + $fixedAssetsNet;
+
+        $outstandingLiabilityTotal = $liabilitiesOutstanding + $unearnedRevenue + $salaryPayable + $payrollTaxPayable + $payrollRecoveries;
+        $totalLiabilities = $outstandingLiabilityTotal + $bankOverdraft;
         $retainedEarnings = $totalAssets - $totalLiabilities;
 
         return [
@@ -374,11 +456,17 @@ class ReportService
             'assets' => [
                 'cash_and_bank' => round($cashAndBank, 2),
                 'accounts_receivable' => round($accountsReceivable, 2),
-                'fixed_assets' => round($fixedAssets, 2),
+                'fixed_assets' => round($fixedAssetsNet, 2),
+                'fixed_assets_gross' => round($assetPurchases, 2),
+                'accumulated_depreciation' => round($accumulatedDepreciation, 2),
             ],
             'liabilities' => [
-                'outstanding_liabilities' => round($outstandingLiabilities, 2),
+                'outstanding_liabilities' => round($outstandingLiabilityTotal, 2),
                 'bank_overdraft' => round($bankOverdraft, 2),
+                'unearned_revenue' => round($unearnedRevenue, 2),
+                'salary_payable' => round($salaryPayable, 2),
+                'payroll_tax_payable' => round($payrollTaxPayable, 2),
+                'payroll_recoveries_reserve' => round($payrollRecoveries, 2),
             ],
             'equity' => [
                 'retained_earnings' => round($retainedEarnings, 2),
@@ -398,7 +486,7 @@ class ReportService
         [$from, $to] = $this->resolveRange($fromMonth, $toMonth, 6);
 
         $rows = [];
-        $openingBalance = 0.0;
+        $openingBalance = round($this->cashPositionAsOf($from->copy()->subDay()->endOfDay()), 2);
         $totals = [
             'cash_in_collections' => 0.0,
             'operating_outflow' => 0.0,
@@ -414,17 +502,14 @@ class ReportService
                 ->whereBetween('payment_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                 ->sum('amount');
 
-            $payrollOutflow = (float) SalaryMonth::query()
-                ->whereDate('month', $monthStart->toDateString())
-                ->sum('net_payable');
+            $payrollPaid = $this->payrollPaidForPeriod($monthStart, $monthEnd);
+            $opexOutflow = $this->operatingExpenseForPeriod($monthStart, $monthEnd);
+            $operatingOutflow = $payrollPaid + $opexOutflow;
 
-            $opexOutflow = (float) Expense::query()
-                ->whereBetween('expense_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                ->sum('amount');
+            $assetPurchaseOutflow = $this->assetPurchasesForPeriod($monthStart, $monthEnd);
+            $liabilityOutflow = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
+            $financingOutflow = $assetPurchaseOutflow + $liabilityOutflow;
 
-            $financingOutflow = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
-
-            $operatingOutflow = $payrollOutflow + $opexOutflow;
             $netCashFlow = $cashInCollections - $operatingOutflow - $financingOutflow;
             $closingBalance = $openingBalance + $netCashFlow;
 
@@ -472,63 +557,7 @@ class ReportService
     ): array {
         [$from, $to] = $this->resolveDateRange($fromDate, $toDate, 90);
 
-        $invoiceEntries = Invoice::query()
-            ->with(['project.client'])
-            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
-            ->whereNotNull('invoice_date')
-            ->whereBetween('invoice_date', [$from->toDateString(), $to->toDateString()])
-            ->when($projectId, fn ($query) => $query->where('project_id', $projectId))
-            ->when($invoiceId, fn ($query) => $query->where('id', $invoiceId))
-            ->get()
-            ->map(static function (Invoice $invoice): array {
-                $entryDate = optional($invoice->invoice_date)->toDateString() ?? optional($invoice->created_at)->toDateString();
-
-                return [
-                    'entry_date' => $entryDate,
-                    'entry_type' => 'invoice_accrual',
-                    'reference' => 'INV-'.$invoice->id,
-                    'description' => 'Invoice accrued: '.$invoice->invoice_number,
-                    'project_id' => $invoice->project_id,
-                    'project_name' => $invoice->project?->name,
-                    'client_name' => $invoice->project?->client?->name,
-                    'invoice_id' => $invoice->id,
-                    'invoice_number' => $invoice->invoice_number,
-                    'debit_account' => 'Accounts Receivable',
-                    'credit_account' => 'Revenue',
-                    'amount' => round((float) $invoice->amount, 2),
-                    'sort_weight' => 1,
-                    'sort_id' => $invoice->id,
-                ];
-            });
-
-        $paymentEntries = ProjectPayment::query()
-            ->with(['project.client', 'invoice'])
-            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
-            ->when($projectId, fn ($query) => $query->where('project_id', $projectId))
-            ->when($invoiceId, fn ($query) => $query->where('invoice_id', $invoiceId))
-            ->get()
-            ->map(static function (ProjectPayment $payment): array {
-                return [
-                    'entry_date' => optional($payment->payment_date)->toDateString(),
-                    'entry_type' => 'payment_collection',
-                    'reference' => 'PMT-'.$payment->id,
-                    'description' => 'Payment received'.($payment->reference_number ? ' ('.$payment->reference_number.')' : ''),
-                    'project_id' => $payment->project_id,
-                    'project_name' => $payment->project?->name,
-                    'client_name' => $payment->project?->client?->name,
-                    'invoice_id' => $payment->invoice_id,
-                    'invoice_number' => $payment->invoice?->invoice_number,
-                    'debit_account' => 'Cash and Bank',
-                    'credit_account' => 'Accounts Receivable',
-                    'amount' => round((float) $payment->amount, 2),
-                    'payment_method' => $payment->payment_method,
-                    'sort_weight' => 2,
-                    'sort_id' => $payment->id,
-                ];
-            });
-
-        $entries = $invoiceEntries
-            ->concat($paymentEntries)
+        $entries = $this->buildGeneralLedgerRows($from, $to, $projectId, $invoiceId)
             ->sort(static function (array $a, array $b): int {
                 $left = [$a['entry_date'] ?? '', $a['sort_weight'] ?? 0, $a['sort_id'] ?? 0];
                 $right = [$b['entry_date'] ?? '', $b['sort_weight'] ?? 0, $b['sort_id'] ?? 0];
@@ -640,6 +669,625 @@ class ReportService
                 'by_payment_method' => $methodTotals,
             ],
         ];
+    }
+
+    private function buildGeneralLedgerRows(
+        Carbon $from,
+        Carbon $to,
+        ?int $projectId,
+        ?int $invoiceId,
+    ): Collection {
+        $rows = collect();
+        $fromDate = $from->toDateString();
+        $toDate = $to->toDateString();
+        $fromMonth = $from->copy()->startOfMonth()->toDateString();
+        $toMonth = $to->copy()->startOfMonth()->toDateString();
+
+        $invoiceEntries = Invoice::query()
+            ->with(['project.client'])
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->whereNotNull('invoice_date')
+            ->whereBetween('invoice_date', [$fromDate, $toDate])
+            ->when($projectId, fn ($query) => $query->where('project_id', $projectId))
+            ->when($invoiceId, fn ($query) => $query->where('id', $invoiceId))
+            ->get();
+
+        foreach ($invoiceEntries as $invoice) {
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: optional($invoice->invoice_date)->toDateString() ?? optional($invoice->created_at)->toDateString(),
+                entryType: 'invoice_accrual',
+                reference: 'INV-'.$invoice->id,
+                description: 'Invoice accrued: '.$invoice->invoice_number,
+                projectId: $invoice->project_id,
+                projectName: $invoice->project?->name,
+                clientName: $invoice->project?->client?->name,
+                invoiceId: $invoice->id,
+                invoiceNumber: $invoice->invoice_number,
+                debitAccount: $this->accountName('1200'),
+                creditAccount: $this->accountName('4100'),
+                amount: (float) $invoice->amount,
+                sortWeight: 10,
+                sortId: (int) $invoice->id,
+            );
+        }
+
+        $paymentEntries = ProjectPayment::query()
+            ->with(['project.client', 'invoice'])
+            ->whereBetween('payment_date', [$fromDate, $toDate])
+            ->when($projectId, fn ($query) => $query->where('project_id', $projectId))
+            ->when($invoiceId, fn ($query) => $query->where('invoice_id', $invoiceId))
+            ->get();
+
+        foreach ($paymentEntries as $payment) {
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: optional($payment->payment_date)->toDateString(),
+                entryType: 'payment_collection',
+                reference: 'PMT-'.$payment->id,
+                description: 'Payment received'.($payment->reference_number ? ' ('.$payment->reference_number.')' : ''),
+                projectId: $payment->project_id,
+                projectName: $payment->project?->name,
+                clientName: $payment->project?->client?->name,
+                invoiceId: $payment->invoice_id,
+                invoiceNumber: $payment->invoice?->invoice_number,
+                debitAccount: $this->accountName('1100'),
+                creditAccount: $payment->invoice_id ? $this->accountName('1200') : $this->accountName('2300'),
+                amount: (float) $payment->amount,
+                sortWeight: 20,
+                sortId: (int) $payment->id,
+                extra: [
+                    'payment_method' => $payment->payment_method,
+                ],
+            );
+        }
+
+        if ($projectId || $invoiceId) {
+            return $rows;
+        }
+
+        $expenseEntries = Expense::query()
+            ->whereBetween('expense_date', [$fromDate, $toDate])
+            ->get();
+
+        foreach ($expenseEntries as $expense) {
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: optional($expense->expense_date)->toDateString(),
+                entryType: 'expense_recorded',
+                reference: 'EXP-'.$expense->id,
+                description: 'Expense booked: '.$expense->category,
+                projectId: null,
+                projectName: null,
+                clientName: null,
+                invoiceId: null,
+                invoiceNumber: null,
+                debitAccount: $this->accountName('5200'),
+                creditAccount: $this->accountName('1100'),
+                amount: (float) $expense->amount,
+                sortWeight: 30,
+                sortId: (int) $expense->id,
+            );
+        }
+
+        $salaryAccruals = SalaryMonth::query()
+            ->whereIn('status', self::PAYROLL_ACCRUAL_STATUSES)
+            ->whereDate('month', '>=', $fromMonth)
+            ->whereDate('month', '<=', $toMonth)
+            ->get();
+
+        foreach ($salaryAccruals as $salaryMonth) {
+            $gross = round((float) $salaryMonth->gross_earnings, 2);
+            $tax = round((float) $salaryMonth->tds_deduction + (float) $salaryMonth->pf_deduction + (float) $salaryMonth->professional_tax, 2);
+            $recoveries = round((float) $salaryMonth->unpaid_leave_deduction + (float) $salaryMonth->late_penalty_deduction + (float) $salaryMonth->loan_emi_deduction, 2);
+            $net = round((float) $salaryMonth->net_payable, 2);
+
+            $allocated = round($net + $tax + $recoveries, 2);
+            $diff = round($gross - $allocated, 2);
+            if (abs($diff) > 0.01) {
+                $net = round($net + $diff, 2);
+            }
+
+            $entryDate = optional($salaryMonth->month)->toDateString();
+            $reference = 'SAL-ACR-'.$salaryMonth->id;
+            $monthLabel = optional($salaryMonth->month)->format('Y-m') ?? 'n/a';
+
+            if ($net > 0) {
+                $this->appendLedgerRow(
+                    $rows,
+                    entryDate: $entryDate,
+                    entryType: 'payroll_accrual',
+                    reference: $reference,
+                    description: 'Payroll accrued for '.$monthLabel.' (net payable)',
+                    projectId: null,
+                    projectName: null,
+                    clientName: null,
+                    invoiceId: null,
+                    invoiceNumber: null,
+                    debitAccount: $this->accountName('5100'),
+                    creditAccount: $this->accountName('2400'),
+                    amount: $net,
+                    sortWeight: 40,
+                    sortId: (int) $salaryMonth->id,
+                );
+            }
+
+            if ($tax > 0) {
+                $this->appendLedgerRow(
+                    $rows,
+                    entryDate: $entryDate,
+                    entryType: 'payroll_accrual',
+                    reference: $reference,
+                    description: 'Payroll accrued for '.$monthLabel.' (tax withholding)',
+                    projectId: null,
+                    projectName: null,
+                    clientName: null,
+                    invoiceId: null,
+                    invoiceNumber: null,
+                    debitAccount: $this->accountName('5100'),
+                    creditAccount: $this->accountName('2450'),
+                    amount: $tax,
+                    sortWeight: 40,
+                    sortId: (int) $salaryMonth->id,
+                );
+            }
+
+            if ($recoveries > 0) {
+                $this->appendLedgerRow(
+                    $rows,
+                    entryDate: $entryDate,
+                    entryType: 'payroll_accrual',
+                    reference: $reference,
+                    description: 'Payroll accrued for '.$monthLabel.' (other recoveries)',
+                    projectId: null,
+                    projectName: null,
+                    clientName: null,
+                    invoiceId: null,
+                    invoiceNumber: null,
+                    debitAccount: $this->accountName('5100'),
+                    creditAccount: $this->accountName('2460'),
+                    amount: $recoveries,
+                    sortWeight: 40,
+                    sortId: (int) $salaryMonth->id,
+                );
+            }
+        }
+
+        $salaryPaidEntries = SalaryMonth::query()
+            ->where('status', 'paid')
+            ->where(function ($query) use ($fromDate, $toDate, $fromMonth, $toMonth): void {
+                $query->where(function ($paidQuery) use ($fromDate, $toDate): void {
+                    $paidQuery->whereNotNull('paid_at')
+                        ->whereBetween('paid_at', [$fromDate.' 00:00:00', $toDate.' 23:59:59']);
+                })->orWhere(function ($fallbackQuery) use ($fromMonth, $toMonth): void {
+                    $fallbackQuery->whereNull('paid_at')
+                        ->whereDate('month', '>=', $fromMonth)
+                        ->whereDate('month', '<=', $toMonth);
+                });
+            })
+            ->get();
+
+        foreach ($salaryPaidEntries as $salaryMonth) {
+            $entryDate = $salaryMonth->paid_at
+                ? Carbon::parse($salaryMonth->paid_at)->toDateString()
+                : optional($salaryMonth->month)->toDateString();
+
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: $entryDate,
+                entryType: 'payroll_payment',
+                reference: 'SAL-PAY-'.$salaryMonth->id,
+                description: 'Salary paid for '.(optional($salaryMonth->month)->format('Y-m') ?? 'n/a'),
+                projectId: null,
+                projectName: null,
+                clientName: null,
+                invoiceId: null,
+                invoiceNumber: null,
+                debitAccount: $this->accountName('2400'),
+                creditAccount: $this->accountName('1100'),
+                amount: (float) $salaryMonth->net_payable,
+                sortWeight: 50,
+                sortId: (int) $salaryMonth->id,
+            );
+        }
+
+        $assetPurchases = Asset::query()
+            ->whereBetween('purchase_date', [$fromDate, $toDate])
+            ->get();
+
+        foreach ($assetPurchases as $asset) {
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: optional($asset->purchase_date)->toDateString(),
+                entryType: 'asset_purchase',
+                reference: 'AST-'.$asset->id,
+                description: 'Asset purchased: '.$asset->name,
+                projectId: null,
+                projectName: null,
+                clientName: null,
+                invoiceId: null,
+                invoiceNumber: null,
+                debitAccount: $this->accountName('1500'),
+                creditAccount: $this->accountName('1100'),
+                amount: (float) $asset->purchase_cost,
+                sortWeight: 60,
+                sortId: (int) $asset->id,
+            );
+        }
+
+        $depreciationSeries = $this->depreciationSeries($to->copy()->endOfMonth());
+        $fromMonthKey = $from->format('Y-m');
+        $toMonthKey = $to->format('Y-m');
+
+        foreach ($depreciationSeries as $monthKey => $amount) {
+            if ($monthKey < $fromMonthKey || $monthKey > $toMonthKey || $amount <= 0) {
+                continue;
+            }
+
+            $entryDate = Carbon::createFromFormat('Y-m-d', $monthKey.'-01')->endOfMonth();
+            if ($entryDate->greaterThan($to)) {
+                $entryDate = $to->copy();
+            }
+
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: $entryDate->toDateString(),
+                entryType: 'depreciation_accrual',
+                reference: 'DEP-'.$monthKey,
+                description: 'Monthly depreciation accrual for '.$monthKey,
+                projectId: null,
+                projectName: null,
+                clientName: null,
+                invoiceId: null,
+                invoiceNumber: null,
+                debitAccount: $this->accountName('5300'),
+                creditAccount: $this->accountName('1590'),
+                amount: (float) $amount,
+                sortWeight: 70,
+                sortId: (int) str_replace('-', '', $monthKey),
+            );
+        }
+
+        foreach ($this->monthsInRange($from->copy()->startOfMonth(), $to->copy()->startOfMonth()) as $month) {
+            $monthStart = $month->copy()->startOfMonth();
+            $monthEnd = $month->copy()->endOfMonth();
+            $amount = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
+
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $entryDate = $monthEnd->lessThanOrEqualTo($to) ? $monthEnd : $to->copy();
+            $monthKey = $monthStart->format('Y-m');
+
+            $this->appendLedgerRow(
+                $rows,
+                entryDate: $entryDate->toDateString(),
+                entryType: 'liability_finance_payment',
+                reference: 'LIA-COST-'.$monthKey,
+                description: 'Liability financing outflow for '.$monthKey,
+                projectId: null,
+                projectName: null,
+                clientName: null,
+                invoiceId: null,
+                invoiceNumber: null,
+                debitAccount: $this->accountName('5400'),
+                creditAccount: $this->accountName('1100'),
+                amount: (float) $amount,
+                sortWeight: 80,
+                sortId: (int) str_replace('-', '', $monthKey),
+            );
+        }
+
+        return $rows;
+    }
+
+    private function appendLedgerRow(
+        Collection $rows,
+        ?string $entryDate,
+        string $entryType,
+        string $reference,
+        string $description,
+        ?int $projectId,
+        ?string $projectName,
+        ?string $clientName,
+        ?int $invoiceId,
+        ?string $invoiceNumber,
+        string $debitAccount,
+        string $creditAccount,
+        float $amount,
+        int $sortWeight,
+        int $sortId,
+        array $extra = [],
+    ): void {
+        $roundedAmount = round($amount, 2);
+        if ($roundedAmount <= 0) {
+            return;
+        }
+
+        $rows->push(array_merge([
+            'entry_date' => $entryDate,
+            'entry_type' => $entryType,
+            'reference' => $reference,
+            'description' => $description,
+            'project_id' => $projectId,
+            'project_name' => $projectName,
+            'client_name' => $clientName,
+            'invoice_id' => $invoiceId,
+            'invoice_number' => $invoiceNumber,
+            'debit_account' => $debitAccount,
+            'credit_account' => $creditAccount,
+            'amount' => $roundedAmount,
+            'sort_weight' => $sortWeight,
+            'sort_id' => $sortId,
+        ], $extra));
+    }
+
+    private function accountName(string $accountCode): string
+    {
+        return self::ACCOUNT_NAMES[$accountCode] ?? $accountCode;
+    }
+
+    private function accruedRevenueForPeriod(Carbon $from, Carbon $to): float
+    {
+        return (float) Invoice::query()
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->whereBetween('invoice_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('amount');
+    }
+
+    private function accruedRevenueAsOf(string $asOfDate): float
+    {
+        return (float) Invoice::query()
+            ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
+            ->whereDate('invoice_date', '<=', $asOfDate)
+            ->sum('amount');
+    }
+
+    private function linkedCollectionsAsOf(string $asOfDate): float
+    {
+        return (float) ProjectPayment::query()
+            ->whereNotNull('invoice_id')
+            ->whereDate('payment_date', '<=', $asOfDate)
+            ->sum('amount');
+    }
+
+    private function unearnedCollectionsAsOf(string $asOfDate): float
+    {
+        return (float) ProjectPayment::query()
+            ->whereNull('invoice_id')
+            ->whereDate('payment_date', '<=', $asOfDate)
+            ->sum('amount');
+    }
+
+    private function totalCollectionsAsOf(string $asOfDate): float
+    {
+        return (float) ProjectPayment::query()
+            ->whereDate('payment_date', '<=', $asOfDate)
+            ->sum('amount');
+    }
+
+    private function operatingExpenseForPeriod(Carbon $from, Carbon $to): float
+    {
+        return (float) Expense::query()
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('amount');
+    }
+
+    private function operatingExpenseAsOf(string $asOfDate): float
+    {
+        return (float) Expense::query()
+            ->whereDate('expense_date', '<=', $asOfDate)
+            ->sum('amount');
+    }
+
+    private function assetPurchasesForPeriod(Carbon $from, Carbon $to): float
+    {
+        return (float) Asset::query()
+            ->whereBetween('purchase_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('purchase_cost');
+    }
+
+    private function assetPurchasesAsOf(string $asOfDate): float
+    {
+        return (float) Asset::query()
+            ->whereDate('purchase_date', '<=', $asOfDate)
+            ->sum('purchase_cost');
+    }
+
+    private function accumulatedDepreciationAsOf(string $asOfDate): float
+    {
+        return (float) Asset::query()
+            ->whereDate('purchase_date', '<=', $asOfDate)
+            ->get(['purchase_cost', 'current_book_value'])
+            ->sum(static fn (Asset $asset): float => max(0, (float) $asset->purchase_cost - (float) $asset->current_book_value));
+    }
+
+    /**
+     * @return array{gross: float, net: float, tax: float, recoveries: float, tds: float}
+     */
+    private function payrollAccruedComponentsForMonth(Carbon $monthStart): array
+    {
+        $row = SalaryMonth::query()
+            ->whereIn('status', self::PAYROLL_ACCRUAL_STATUSES)
+            ->whereDate('month', $monthStart->toDateString())
+            ->selectRaw('COALESCE(SUM(gross_earnings), 0) as gross_total')
+            ->selectRaw('COALESCE(SUM(net_payable), 0) as net_total')
+            ->selectRaw('COALESCE(SUM(tds_deduction + pf_deduction + professional_tax), 0) as tax_total')
+            ->selectRaw('COALESCE(SUM(unpaid_leave_deduction + late_penalty_deduction + loan_emi_deduction), 0) as recoveries_total')
+            ->selectRaw('COALESCE(SUM(tds_deduction), 0) as tds_total')
+            ->first();
+
+        return [
+            'gross' => round((float) ($row->gross_total ?? 0), 2),
+            'net' => round((float) ($row->net_total ?? 0), 2),
+            'tax' => round((float) ($row->tax_total ?? 0), 2),
+            'recoveries' => round((float) ($row->recoveries_total ?? 0), 2),
+            'tds' => round((float) ($row->tds_total ?? 0), 2),
+        ];
+    }
+
+    /**
+     * @return array{gross: float, net: float, tax: float, recoveries: float, tds: float}
+     */
+    private function payrollAccruedComponentsAsOf(Carbon $asOfMonthStart): array
+    {
+        $row = SalaryMonth::query()
+            ->whereIn('status', self::PAYROLL_ACCRUAL_STATUSES)
+            ->whereDate('month', '<=', $asOfMonthStart->toDateString())
+            ->selectRaw('COALESCE(SUM(gross_earnings), 0) as gross_total')
+            ->selectRaw('COALESCE(SUM(net_payable), 0) as net_total')
+            ->selectRaw('COALESCE(SUM(tds_deduction + pf_deduction + professional_tax), 0) as tax_total')
+            ->selectRaw('COALESCE(SUM(unpaid_leave_deduction + late_penalty_deduction + loan_emi_deduction), 0) as recoveries_total')
+            ->selectRaw('COALESCE(SUM(tds_deduction), 0) as tds_total')
+            ->first();
+
+        return [
+            'gross' => round((float) ($row->gross_total ?? 0), 2),
+            'net' => round((float) ($row->net_total ?? 0), 2),
+            'tax' => round((float) ($row->tax_total ?? 0), 2),
+            'recoveries' => round((float) ($row->recoveries_total ?? 0), 2),
+            'tds' => round((float) ($row->tds_total ?? 0), 2),
+        ];
+    }
+
+    private function payrollPaidForPeriod(Carbon $from, Carbon $to): float
+    {
+        return (float) SalaryMonth::query()
+            ->where('status', 'paid')
+            ->where(function ($query) use ($from, $to): void {
+                $query->where(function ($paidAtQuery) use ($from, $to): void {
+                    $paidAtQuery->whereNotNull('paid_at')
+                        ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()]);
+                })->orWhere(function ($fallbackQuery) use ($from, $to): void {
+                    $fallbackQuery->whereNull('paid_at')
+                        ->whereDate('month', '>=', $from->copy()->startOfMonth()->toDateString())
+                        ->whereDate('month', '<=', $to->copy()->startOfMonth()->toDateString());
+                });
+            })
+            ->sum('net_payable');
+    }
+
+    private function payrollPaidAsOf(Carbon $asOf): float
+    {
+        return (float) SalaryMonth::query()
+            ->where('status', 'paid')
+            ->where(function ($query) use ($asOf): void {
+                $query->where(function ($paidAtQuery) use ($asOf): void {
+                    $paidAtQuery->whereNotNull('paid_at')
+                        ->whereDate('paid_at', '<=', $asOf->toDateString());
+                })->orWhere(function ($fallbackQuery) use ($asOf): void {
+                    $fallbackQuery->whereNull('paid_at')
+                        ->whereDate('month', '<=', $asOf->copy()->startOfMonth()->toDateString());
+                });
+            })
+            ->sum('net_payable');
+    }
+
+    private function salaryPayableAsOf(Carbon $asOfMonthStart, float $accruedNet): float
+    {
+        $paidNet = (float) SalaryMonth::query()
+            ->where('status', 'paid')
+            ->where(function ($query) use ($asOfMonthStart): void {
+                $query->where(function ($paidAtQuery) use ($asOfMonthStart): void {
+                    $paidAtQuery->whereNotNull('paid_at')
+                        ->whereDate('paid_at', '<=', $asOfMonthStart->copy()->endOfMonth()->toDateString());
+                })->orWhere(function ($fallbackQuery) use ($asOfMonthStart): void {
+                    $fallbackQuery->whereNull('paid_at')
+                        ->whereDate('month', '<=', $asOfMonthStart->toDateString());
+                });
+            })
+            ->sum('net_payable');
+
+        return round(max(0, $accruedNet - $paidNet), 2);
+    }
+
+    private function cashPositionAsOf(Carbon $asOf): float
+    {
+        $asOfDate = $asOf->toDateString();
+
+        $cashIn = $this->totalCollectionsAsOf($asOfDate);
+        $operatingOut = $this->operatingExpenseAsOf($asOfDate);
+        $payrollOut = $this->payrollPaidAsOf($asOf);
+        $assetOut = $this->assetPurchasesAsOf($asOfDate);
+        $liabilityOut = $this->liabilityCostAsOf($asOf);
+
+        return round($cashIn - $operatingOut - $payrollOut - $assetOut - $liabilityOut, 2);
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function depreciationSeries(Carbon $asOf): array
+    {
+        $series = [];
+
+        $assets = Asset::query()
+            ->whereDate('purchase_date', '<=', $asOf->toDateString())
+            ->get(['purchase_date', 'purchase_cost', 'current_book_value', 'monthly_depreciation']);
+
+        foreach ($assets as $asset) {
+            $monthly = round((float) $asset->monthly_depreciation, 2);
+            if ($monthly <= 0) {
+                continue;
+            }
+
+            $accumulated = round(max(0, (float) $asset->purchase_cost - (float) $asset->current_book_value), 2);
+            if ($accumulated <= 0) {
+                continue;
+            }
+
+            $cursor = Carbon::parse($asset->purchase_date)->startOfMonth();
+            $remaining = $accumulated;
+
+            while ($remaining > 0.009 && $cursor->lessThanOrEqualTo($asOf->copy()->startOfMonth())) {
+                $allocation = round(min($monthly, $remaining), 2);
+                $key = $cursor->format('Y-m');
+                $series[$key] = round(($series[$key] ?? 0) + $allocation, 2);
+
+                $remaining = round($remaining - $allocation, 2);
+                $cursor->addMonth();
+            }
+        }
+
+        ksort($series);
+
+        return $series;
+    }
+
+    private function liabilityCostAsOf(Carbon $asOf): float
+    {
+        $liabilities = Liability::query()
+            ->whereDate('start_date', '<=', $asOf->toDateString())
+            ->get(['start_date', 'end_date', 'monthly_payment']);
+
+        $total = 0.0;
+        $asOfMonth = $asOf->copy()->startOfMonth();
+
+        foreach ($liabilities as $liability) {
+            $monthlyPayment = (float) $liability->monthly_payment;
+            if ($monthlyPayment <= 0) {
+                continue;
+            }
+
+            $start = Carbon::parse($liability->start_date)->startOfMonth();
+            $end = $liability->end_date
+                ? Carbon::parse($liability->end_date)->startOfMonth()
+                : $asOfMonth->copy();
+
+            if ($end->greaterThan($asOfMonth)) {
+                $end = $asOfMonth->copy();
+            }
+
+            if ($start->greaterThan($end)) {
+                continue;
+            }
+
+            $months = $start->diffInMonths($end) + 1;
+            $total += $months * $monthlyPayment;
+        }
+
+        return round($total, 2);
     }
 
     private function corporateTaxRate(): float

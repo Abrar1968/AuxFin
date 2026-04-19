@@ -7,8 +7,11 @@
         "dev": "vite",
         "test": "npm run test:backend && npm run test:frontend",
         "test:backend": "php artisan test",
-        "test:frontend": "vitest run",
+        "test:frontend": "vitest run --pool=threads --maxWorkers=1",
         "test:frontend:watch": "vitest"
+    },
+    "overrides": {
+        "dompurify": "3.4.0"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

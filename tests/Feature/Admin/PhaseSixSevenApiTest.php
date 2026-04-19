@@ -179,6 +179,41 @@ test('accounting statement endpoints return accrual payloads', function () {
         ]);
 });
 
+test('accrual accounting report includes full account coverage', function () {
+    [$admin] = seedPhaseSixSevenData();
+    Sanctum::actingAs($admin);
+
+    $asOf = now()->toDateString();
+    $from = now()->startOfMonth()->toDateString();
+    $to = now()->endOfMonth()->toDateString();
+
+    $trialBalance = $this->getJson("/api/admin/reports/trial-balance?as_of={$asOf}")
+        ->assertOk()
+        ->json();
+
+    $accountCodes = collect($trialBalance['lines'] ?? [])->pluck('account_code')->all();
+
+    expect($accountCodes)
+        ->toContain('4100')
+        ->toContain('5100')
+        ->toContain('5200');
+
+    expect(abs((float) ($trialBalance['totals']['debit'] ?? 0) - (float) ($trialBalance['totals']['credit'] ?? 0)))
+        ->toBeLessThanOrEqual(0.01);
+
+    $generalLedger = $this->getJson("/api/admin/reports/general-ledger?from_date={$from}&to_date={$to}&per_page=200")
+        ->assertOk()
+        ->json();
+
+    $entryTypes = collect($generalLedger['entries'] ?? [])->pluck('entry_type')->unique()->all();
+
+    expect($entryTypes)
+        ->toContain('invoice_accrual')
+        ->toContain('payment_collection')
+        ->toContain('expense_recorded')
+        ->toContain('payroll_accrual');
+});
+
 test('admin can record and delete project payments for invoices', function () {
     [$admin, $project, $paidInvoice, $partialInvoice] = seedPhaseSixSevenData();
     Sanctum::actingAs($admin);
@@ -206,6 +241,64 @@ test('admin can record and delete project payments for invoices', function () {
 
     // A fully paid seeded invoice should stay paid.
     expect($paidInvoice->fresh()->status)->toBe('paid');
+});
+
+test('invoice settlement consumes existing unlinked project advance first', function () {
+    [$admin, $project] = seedPhaseSixSevenData();
+    Sanctum::actingAs($admin);
+
+    $invoice = Invoice::query()->create([
+        'project_id' => $project->id,
+        'invoice_number' => 'INV-ADV-SETTLE-9001',
+        'amount' => 300,
+        'invoice_date' => now()->toDateString(),
+        'due_date' => now()->addDays(7)->toDateString(),
+        'status' => 'sent',
+    ]);
+
+    $this->postJson("/api/admin/projects/{$project->id}/payments", [
+        'payment_date' => now()->toDateString(),
+        'amount' => 300,
+        'payment_method' => 'bank_transfer',
+        'reference_number' => 'ADV-SETTLE-300',
+    ])->assertCreated();
+
+    $totalAfterAdvance = (float) ProjectPayment::query()
+        ->where('project_id', $project->id)
+        ->sum('amount');
+
+    $settlement = $this->postJson("/api/admin/projects/{$project->id}/payments", [
+        'invoice_id' => $invoice->id,
+        'payment_date' => now()->toDateString(),
+        'amount' => 300,
+        'payment_method' => 'bank_transfer',
+        'reference_number' => 'SETTLE-ADV-300',
+    ])->assertCreated();
+
+    expect((int) $settlement->json('payment.invoice_id'))->toBe($invoice->id);
+
+    expect((float) ProjectPayment::query()->where('project_id', $project->id)->sum('amount'))
+        ->toBe($totalAfterAdvance);
+
+    $invoice->refresh();
+    expect($invoice->status)->toBe('paid')
+        ->and((float) $invoice->partial_amount)->toBe(300.0);
+
+    expect(
+        ProjectPayment::query()
+            ->where('project_id', $project->id)
+            ->whereNull('invoice_id')
+            ->where('reference_number', 'ADV-SETTLE-300')
+            ->count()
+    )->toBe(0);
+
+    expect(
+        ProjectPayment::query()
+            ->where('project_id', $project->id)
+            ->where('invoice_id', $invoice->id)
+            ->where('reference_number', 'ADV-SETTLE-300')
+            ->count()
+    )->toBe(1);
 });
 
 test('invoice status transitions create payment ledger and sync invoice totals', function () {

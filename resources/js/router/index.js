@@ -3,6 +3,18 @@ import { applyAuthGuards } from './guards';
 
 const routes = [
     {
+        path: '/admin/docs/print',
+        name: 'admin.docs.print',
+        component: () => import('../views/admin/docs/AdminManualPrintView.vue'),
+        meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+        path: '/portal/docs/print',
+        name: 'employee.docs.print',
+        component: () => import('../views/employee/docs/EmployeeManualPrintView.vue'),
+        meta: { requiresAuth: true, role: 'employee' },
+    },
+    {
         path: '/login',
         component: () => import('../layouts/AuthLayout.vue'),
         children: [
@@ -39,6 +51,7 @@ const routes = [
             { path: 'reports', name: 'admin.reports', component: () => import('../views/admin/reports/ReportsView.vue') },
             { path: 'accounting', name: 'admin.accounting', component: () => import('../views/admin/accounting/AccountingView.vue') },
             { path: 'messages', name: 'admin.messages', component: () => import('../views/admin/messages/MessageCenterView.vue') },
+            { path: 'docs', name: 'admin.docs', component: () => import('../views/admin/docs/AdminManualView.vue') },
         ],
     },
     {
@@ -54,6 +67,7 @@ const routes = [
             { path: 'leaves', name: 'employee.leaves', component: () => import('../views/employee/leaves/LeaveView.vue') },
             { path: 'attendance', name: 'employee.attendance', component: () => import('../views/employee/attendance/AttendanceView.vue') },
             { path: 'inbox', name: 'employee.inbox', component: () => import('../views/employee/messages/InboxView.vue') },
+            { path: 'docs', name: 'employee.docs', component: () => import('../views/employee/docs/EmployeeManualView.vue') },
         ],
     },
     {

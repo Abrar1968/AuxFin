@@ -112,6 +112,7 @@ const title = computed(() => {
         'admin.analytics': 'Analytics Overview',
         'admin.growth': 'Growth Analytics',
         'admin.reports': 'Financial Reports',
+        'admin.docs': 'Admin Docs Manual',
         'admin.messages': 'Message Center',
         'employee.dashboard': 'Employee Dashboard',
         'employee.salary': 'Salary History',
@@ -121,6 +122,7 @@ const title = computed(() => {
         'employee.leaves': 'Leave Requests',
         'employee.attendance': 'Attendance',
         'employee.inbox': 'Inbox',
+        'employee.docs': 'Employee Docs Manual',
     };
 
     return map[route.name] ?? 'FinERP';

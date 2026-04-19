@@ -160,6 +160,7 @@ const sections = computed(() => {
                     { label: 'Leaves', to: '/portal/leaves' },
                     { label: 'Attendance', to: '/portal/attendance' },
                     { label: 'Inbox', to: '/portal/inbox', withMessageBadge: true },
+                    { label: 'Docs Manual', to: '/portal/docs' },
                 ],
             },
         ];
@@ -198,6 +199,7 @@ const sections = computed(() => {
             items: [
                 { label: 'Messages', to: '/admin/messages', withMessageBadge: true },
                 { label: 'Settings', to: '/admin/settings' },
+                { label: 'Docs Manual', to: '/admin/docs' },
             ],
         },
     ];

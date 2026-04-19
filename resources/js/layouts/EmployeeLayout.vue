@@ -10,7 +10,7 @@
         <div class="flex min-h-0 min-w-0 flex-1 flex-col transition-[padding] duration-300" :class="contentOffsetClass">
             <Topbar @toggle-sidebar="toggleSidebar" />
             <main class="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                <div class="mx-auto w-full max-w-[1400px] space-y-4 md:space-y-5 fin-section-enter">
+                <div class="mx-auto w-full max-w-350 space-y-4 md:space-y-5 fin-section-enter">
                 <BreadcrumbNav />
                 <RouterView />
                 </div>

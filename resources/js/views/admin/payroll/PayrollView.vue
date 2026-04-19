@@ -190,5 +190,9 @@ function statusClass(status) {
     return 'bg-slate-100 text-slate-700';
 }
 
+function number(v) {
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(v ?? 0));
+}
+
 load();
 </script>
