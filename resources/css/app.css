@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.vue';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+        'Courier New', monospace;
+}
+
+:root {
+    --bg-base: #f4f8fb;
+    --bg-surface: #ffffff;
+    --bg-muted: #edf4f8;
+    --bg-dark: #0d2233;
+    --bg-dark-card: #12324a;
+
+    --color-primary: #0f766e;
+    --color-secondary: #0284c7;
+    --color-accent: #f59e0b;
+    --color-gradient: linear-gradient(135deg, #0f766e 0%, #0284c7 60%, #0891b2 100%);
+
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #3b82f6;
+
+    --text-primary: #102432;
+    --text-muted: #4d6678;
+    --text-light: #7b93a4;
+
+    --border: #d6e3ec;
+    --shadow-card: 0 12px 34px rgb(9 44 76 / 8%), 0 2px 8px rgb(0 0 0 / 4%);
+    --shadow-panel: 0 18px 42px rgb(2 132 199 / 12%), 0 4px 14px rgb(15 118 110 / 10%);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-pill: 999px;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    background:
+        radial-gradient(1000px 560px at -10% -20%, rgb(2 132 199 / 18%) 0%, transparent 55%),
+        radial-gradient(1100px 620px at 110% 0%, rgb(15 118 110 / 14%) 0%, transparent 60%),
+        radial-gradient(900px 520px at 55% 120%, rgb(245 158 11 / 10%) 0%, transparent 70%),
+        linear-gradient(180deg, #f5fbff 0%, #f4f8fb 48%, #edf6ff 100%);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    text-rendering: optimizeLegibility;
+}
+
+#app {
+    min-height: 100vh;
+}
+
+code,
+.mono {
+    font-family: var(--font-mono);
+}
+
+@layer components {
+    .fin-card {
+        background: linear-gradient(180deg, rgb(255 255 255 / 96%) 0%, rgb(255 255 255 / 92%) 100%);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow-card);
+        backdrop-filter: blur(5px);
+        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+
+    .fin-card:hover {
+        border-color: rgb(2 132 199 / 35%);
+        box-shadow: 0 20px 44px rgb(2 132 199 / 14%), 0 6px 14px rgb(0 0 0 / 6%);
+        transform: translateY(-1px);
+    }
+
+    .fin-card-panel {
+        background:
+            linear-gradient(170deg, rgb(255 255 255 / 98%) 0%, rgb(241 250 255 / 92%) 100%);
+        border: 1px solid rgb(2 132 199 / 22%);
+        border-radius: 20px;
+        box-shadow: var(--shadow-panel);
+    }
+
+    .fin-gradient-text {
+        background: var(--color-gradient);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .fin-glass {
+        background: rgb(255 255 255 / 66%);
+        border: 1px solid rgb(148 192 218 / 40%);
+        backdrop-filter: blur(10px);
+    }
+
+    .fin-section-enter {
+        animation: sectionIn 0.42s ease both;
+    }
+
+    .fin-focus-ring:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 4px rgb(2 132 199 / 24%);
+    }
+
+    .auth-reveal {
+        animation: authPanelIn 620ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    .auth-reveal-delay-1 {
+        animation-delay: 120ms;
+    }
+
+    .auth-orb {
+        animation: authFloat 9s ease-in-out infinite;
+    }
+
+    .auth-orb-delay {
+        animation-delay: -3.2s;
+    }
+}
+
+@keyframes sectionIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes authPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes authFloat {
+    0% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+        transform: translate3d(8px, -12px, 0);
+    }
+
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+}
