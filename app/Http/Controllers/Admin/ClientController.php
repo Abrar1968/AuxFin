@@ -11,7 +11,22 @@ class ClientController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        if ($request->boolean('options')) {
+            $limit = max(1, min(1000, $request->integer('limit', 500)));
+
+            $rows = Client::query()
+                ->select(['id', 'name'])
+                ->orderBy('name')
+                ->limit($limit)
+                ->get();
+
+            return response()->json($rows);
+        }
+
+        $perPage = max(1, min(100, $request->integer('per_page', 20)));
+
         $rows = Client::query()
+            ->select(['id', 'name', 'email', 'phone', 'contact_person', 'created_at'])
             ->withCount('projects')
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = (string) $request->query('search');
@@ -23,7 +38,7 @@ class ClientController extends Controller
                 });
             })
             ->latest('id')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($perPage);
 
         return response()->json($rows);
     }

@@ -457,6 +457,34 @@ function exportManualPdf(payload, fallbackTitle, fallbackFileName) {
         },
     });
 
+    const analyticsMetrics = payload?.analytics_metrics ?? [];
+    if (analyticsMetrics.length > 0) {
+        autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 12,
+            head: [['Module', 'Metric', 'Route', 'Chart', 'Formula', 'How To Use', 'Decision Guide']],
+            body: analyticsMetrics.map((metric) => [
+                metric.module ?? '-',
+                metric.metric ?? '-',
+                metric.route ?? '-',
+                metric.chart ?? '-',
+                metric.formula ?? '-',
+                normalizeList(metric.how_to_use),
+                normalizeList(metric.decision_guide),
+            ]),
+            styles: { fontSize: 7, cellPadding: 4, valign: 'top' },
+            headStyles: { fillColor: [41, 80, 140] },
+            columnStyles: {
+                0: { cellWidth: 58 },
+                1: { cellWidth: 66 },
+                2: { cellWidth: 52 },
+                3: { cellWidth: 55 },
+                4: { cellWidth: 85 },
+                5: { cellWidth: 86 },
+                6: { cellWidth: 86 },
+            },
+        });
+    }
+
     doc.save(filename);
 }
 

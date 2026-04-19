@@ -389,7 +389,7 @@ test('report endpoints dispatch insight stream events', function () {
 test('security audit command dispatches insight stream event', function () {
     Event::fake([InsightStreamed::class]);
 
-    $this->artisan('finerp:security:audit')
+    $this->artisan('auxfin:security:audit')
         ->assertExitCode(0);
 
     Event::assertDispatched(InsightStreamed::class, function (InsightStreamed $event): bool {

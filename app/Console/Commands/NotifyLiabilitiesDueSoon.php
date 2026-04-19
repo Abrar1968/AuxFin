@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class NotifyLiabilitiesDueSoon extends Command
 {
-    protected $signature = 'finerp:liabilities:notify-due-soon {--days=3 : Number of days window for due soon notification}';
+    protected $signature = 'auxfin:liabilities:notify-due-soon {--days=3 : Number of days window for due soon notification}';
 
     protected $description = 'Broadcast liabilities that are due soon to admin channel';
 

@@ -14,7 +14,7 @@ beforeEach(function (): void {
 });
 
 test('admin frontend endpoints return populated seeded data', function () {
-    $admin = User::query()->where('email', 'admin@finerp.local')->firstOrFail();
+    $admin = User::query()->where('email', 'admin@auxfin.local')->firstOrFail();
     Sanctum::actingAs($admin, ['admin']);
 
     $employees = $this->getJson('/api/admin/employees')->assertOk()->json('data');
@@ -41,7 +41,7 @@ test('admin frontend endpoints return populated seeded data', function () {
 });
 
 test('employee frontend endpoints return populated seeded data', function () {
-    $employeeUser = User::query()->where('email', 'sadia@finerp.local')->firstOrFail();
+    $employeeUser = User::query()->where('email', 'sadia@auxfin.local')->firstOrFail();
     Sanctum::actingAs($employeeUser, ['employee']);
 
     $dashboard = $this->getJson('/api/employee/dashboard')->assertOk()->json();

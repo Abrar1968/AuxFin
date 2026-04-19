@@ -12,6 +12,7 @@ use App\Models\OwnerEquityEntry;
 use App\Models\ProjectPayment;
 use App\Models\SalaryMonth;
 use App\Models\Setting;
+use App\Support\TimeframeRange;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -53,11 +54,14 @@ class ReportService
         '5400' => 'Liability Finance Cost',
     ];
 
-    public function profitLoss(?string $fromMonth = null, ?string $toMonth = null): array
-    {
-        [$from, $to] = $this->resolveRange($fromMonth, $toMonth, 6);
+    public function profitLoss(
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
+    ): array {
+        [$from, $to, $resolvedTimeframe] = $this->resolveReportRange($fromDate, $toDate, $timeframe, $anchorDate, 6);
         $taxRate = $this->corporateTaxRate();
-        $depreciationSeries = $this->depreciationSeries($to->copy()->endOfMonth());
 
         $rows = [];
         $totals = [
@@ -73,23 +77,23 @@ class ReportService
             'profit_after_tax' => 0.0,
         ];
 
-        foreach ($this->monthsInRange($from, $to) as $month) {
-            $monthStart = $month->copy()->startOfMonth();
-            $monthEnd = $month->copy()->endOfMonth();
+        foreach ($this->periodsInRange($from, $to, $resolvedTimeframe) as $period) {
+            $periodStart = $period['start'];
+            $periodEnd = $period['end'];
 
-            $revenue = $this->accruedRevenueForPeriod($monthStart, $monthEnd);
+            $revenue = $this->accruedRevenueForPeriod($periodStart, $periodEnd);
             $cashCollected = (float) ProjectPayment::query()
-                ->whereBetween('payment_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->whereBetween('payment_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
                 ->sum('amount');
 
-            $payrollComponents = $this->payrollAccruedComponentsForMonth($monthStart);
+            $payrollComponents = $this->payrollAccruedComponentsForPeriod($periodStart, $periodEnd);
             $payroll = (float) $payrollComponents['gross'];
 
-            $opexBase = $this->accruedOperatingExpenseForPeriod($monthStart, $monthEnd);
-            $depreciation = (float) ($depreciationSeries[$monthStart->format('Y-m')] ?? 0.0);
+            $opexBase = $this->accruedOperatingExpenseForPeriod($periodStart, $periodEnd);
+            $depreciation = $this->depreciationForPeriod($periodStart, $periodEnd);
             $opex = $opexBase + $depreciation;
 
-            $liabilityCost = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
+            $liabilityCost = $this->liabilityCostForPeriod($periodStart, $periodEnd);
 
             $grossProfit = $revenue - $payroll;
             $netProfit = $grossProfit - $opex - $liabilityCost;
@@ -97,7 +101,11 @@ class ReportService
             $profitAfterTax = $netProfit - $estimatedTax;
 
             $row = [
-                'month' => $monthStart->format('Y-m'),
+                'period' => $period['key'],
+                'label' => $period['label'],
+                'month' => $period['key'],
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
                 'revenue' => round($revenue, 2),
                 'cash_collected' => round($cashCollected, 2),
                 'payroll' => round($payroll, 2),
@@ -122,19 +130,25 @@ class ReportService
         }
 
         return [
-            'from' => $from->format('Y-m'),
-            'to' => $to->format('Y-m'),
+            'timeframe' => $resolvedTimeframe,
+            'from' => $this->formatTimeframeBoundary($resolvedTimeframe, $from),
+            'to' => $this->formatTimeframeBoundary($resolvedTimeframe, $to),
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
             'tax_rate_percent' => $taxRate,
             'rows' => $rows,
             'totals' => $totals,
         ];
     }
 
-    public function taxSummary(?string $fromMonth = null, ?string $toMonth = null): array
-    {
-        [$from, $to] = $this->resolveRange($fromMonth, $toMonth, 6);
+    public function taxSummary(
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
+    ): array {
+        [$from, $to, $resolvedTimeframe] = $this->resolveReportRange($fromDate, $toDate, $timeframe, $anchorDate, 6);
         $taxRate = $this->corporateTaxRate();
-        $depreciationSeries = $this->depreciationSeries($to->copy()->endOfMonth());
 
         $rows = [];
         $totals = [
@@ -143,23 +157,27 @@ class ReportService
             'payroll_tds_collected' => 0.0,
         ];
 
-        foreach ($this->monthsInRange($from, $to) as $month) {
-            $monthStart = $month->copy()->startOfMonth();
-            $monthEnd = $month->copy()->endOfMonth();
+        foreach ($this->periodsInRange($from, $to, $resolvedTimeframe) as $period) {
+            $periodStart = $period['start'];
+            $periodEnd = $period['end'];
 
-            $revenue = $this->accruedRevenueForPeriod($monthStart, $monthEnd);
-            $payrollComponents = $this->payrollAccruedComponentsForMonth($monthStart);
+            $revenue = $this->accruedRevenueForPeriod($periodStart, $periodEnd);
+            $payrollComponents = $this->payrollAccruedComponentsForPeriod($periodStart, $periodEnd);
             $payroll = (float) $payrollComponents['gross'];
             $payrollTds = (float) $payrollComponents['tds'];
-            $opex = $this->accruedOperatingExpenseForPeriod($monthStart, $monthEnd) + (float) ($depreciationSeries[$monthStart->format('Y-m')] ?? 0.0);
-            $liabilityCost = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
+            $opex = $this->accruedOperatingExpenseForPeriod($periodStart, $periodEnd) + $this->depreciationForPeriod($periodStart, $periodEnd);
+            $liabilityCost = $this->liabilityCostForPeriod($periodStart, $periodEnd);
 
             $netProfit = $revenue - $payroll - $opex - $liabilityCost;
             $taxableProfit = max(0, $netProfit);
             $corporateTax = $taxableProfit * ($taxRate / 100);
 
             $row = [
-                'month' => $monthStart->format('Y-m'),
+                'period' => $period['key'],
+                'label' => $period['label'],
+                'month' => $period['key'],
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
                 'taxable_profit' => round($taxableProfit, 2),
                 'corporate_tax_estimate' => round($corporateTax, 2),
                 'payroll_tds_collected' => round($payrollTds, 2),
@@ -177,17 +195,24 @@ class ReportService
         }
 
         return [
-            'from' => $from->format('Y-m'),
-            'to' => $to->format('Y-m'),
+            'timeframe' => $resolvedTimeframe,
+            'from' => $this->formatTimeframeBoundary($resolvedTimeframe, $from),
+            'to' => $this->formatTimeframeBoundary($resolvedTimeframe, $to),
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
             'tax_rate_percent' => $taxRate,
             'rows' => $rows,
             'totals' => $totals,
         ];
     }
 
-    public function arAging(?string $asOfDate = null): array
-    {
-        $asOf = $asOfDate ? Carbon::parse($asOfDate)->endOfDay() : now()->endOfDay();
+    public function arAging(
+        ?string $asOfDate = null,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
+    ): array {
+        [$periodFrom, $periodTo, $resolvedTimeframe] = $this->resolveAsOfWindow($asOfDate, $timeframe, $anchorDate);
+        $asOf = $periodTo->copy()->endOfDay();
         $asOfDateString = $asOf->toDateString();
 
         $buckets = [
@@ -247,6 +272,9 @@ class ReportService
         }
 
         return [
+            'timeframe' => $resolvedTimeframe,
+            'period_from' => $periodFrom->toDateString(),
+            'period_to' => $periodTo->toDateString(),
             'as_of' => $asOf->toDateString(),
             'total_outstanding' => round($total, 2),
             'distribution' => $distribution,
@@ -258,9 +286,13 @@ class ReportService
         ];
     }
 
-    public function trialBalance(?string $asOfDate = null): array
-    {
-        $asOf = $asOfDate ? Carbon::parse($asOfDate)->endOfDay() : now()->endOfDay();
+    public function trialBalance(
+        ?string $asOfDate = null,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
+    ): array {
+        [$periodFrom, $periodTo, $resolvedTimeframe] = $this->resolveAsOfWindow($asOfDate, $timeframe, $anchorDate);
+        $asOf = $periodTo->copy()->endOfDay();
         $asOfDateString = $asOf->toDateString();
         $asOfMonthStart = $asOf->copy()->startOfMonth();
 
@@ -440,6 +472,9 @@ class ReportService
         $totalCredit = round((float) collect($normalizedLines)->sum('credit'), 2);
 
         return [
+            'timeframe' => $resolvedTimeframe,
+            'period_from' => $periodFrom->toDateString(),
+            'period_to' => $periodTo->toDateString(),
             'as_of' => $asOf->toDateString(),
             'lines' => $normalizedLines,
             'totals' => [
@@ -451,9 +486,13 @@ class ReportService
         ];
     }
 
-    public function balanceSheet(?string $asOfDate = null): array
-    {
-        $asOf = $asOfDate ? Carbon::parse($asOfDate)->endOfDay() : now()->endOfDay();
+    public function balanceSheet(
+        ?string $asOfDate = null,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
+    ): array {
+        [$periodFrom, $periodTo, $resolvedTimeframe] = $this->resolveAsOfWindow($asOfDate, $timeframe, $anchorDate);
+        $asOf = $periodTo->copy()->endOfDay();
         $asOfDateString = $asOf->toDateString();
         $asOfMonthStart = $asOf->copy()->startOfMonth();
 
@@ -493,6 +532,9 @@ class ReportService
         $totalEquity = $ownerCapital + $retainedEarnings - $ownerDrawings;
 
         return [
+            'timeframe' => $resolvedTimeframe,
+            'period_from' => $periodFrom->toDateString(),
+            'period_to' => $periodTo->toDateString(),
             'as_of' => $asOfDateString,
             'assets' => [
                 'cash_and_bank' => round($cashAndBank, 2),
@@ -526,9 +568,13 @@ class ReportService
         ];
     }
 
-    public function cashFlow(?string $fromMonth = null, ?string $toMonth = null): array
-    {
-        [$from, $to] = $this->resolveRange($fromMonth, $toMonth, 6);
+    public function cashFlow(
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
+    ): array {
+        [$from, $to, $resolvedTimeframe] = $this->resolveReportRange($fromDate, $toDate, $timeframe, $anchorDate, 6);
 
         $rows = [];
         $openingBalance = round($this->cashPositionAsOf($from->copy()->subDay()->endOfDay()), 2);
@@ -539,27 +585,31 @@ class ReportService
             'net_cash_flow' => 0.0,
         ];
 
-        foreach ($this->monthsInRange($from, $to) as $month) {
-            $monthStart = $month->copy()->startOfMonth();
-            $monthEnd = $month->copy()->endOfMonth();
+        foreach ($this->periodsInRange($from, $to, $resolvedTimeframe) as $period) {
+            $periodStart = $period['start'];
+            $periodEnd = $period['end'];
 
             $cashInCollections = (float) ProjectPayment::query()
-                ->whereBetween('payment_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->whereBetween('payment_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
                 ->sum('amount');
 
-            $payrollPaid = $this->payrollPaidForPeriod($monthStart, $monthEnd);
-            $opexOutflow = $this->expenseCashPaidForPeriod($monthStart, $monthEnd);
+            $payrollPaid = $this->payrollPaidForPeriod($periodStart, $periodEnd);
+            $opexOutflow = $this->expenseCashPaidForPeriod($periodStart, $periodEnd);
             $operatingOutflow = $payrollPaid + $opexOutflow;
 
-            $assetPurchaseOutflow = $this->assetPurchasesForPeriod($monthStart, $monthEnd);
-            $liabilityOutflow = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
+            $assetPurchaseOutflow = $this->assetPurchasesForPeriod($periodStart, $periodEnd);
+            $liabilityOutflow = $this->liabilityCostForPeriod($periodStart, $periodEnd);
             $financingOutflow = $assetPurchaseOutflow + $liabilityOutflow;
 
             $netCashFlow = $cashInCollections - $operatingOutflow - $financingOutflow;
             $closingBalance = $openingBalance + $netCashFlow;
 
             $row = [
-                'month' => $monthStart->format('Y-m'),
+                'period' => $period['key'],
+                'label' => $period['label'],
+                'month' => $period['key'],
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
                 'opening_balance' => round($openingBalance, 2),
                 'cash_in_collections' => round($cashInCollections, 2),
                 'operating_outflow' => round($operatingOutflow, 2),
@@ -585,8 +635,11 @@ class ReportService
         $totals['ending_balance'] = round($openingBalance, 2);
 
         return [
-            'from' => $from->format('Y-m'),
-            'to' => $to->format('Y-m'),
+            'timeframe' => $resolvedTimeframe,
+            'from' => $this->formatTimeframeBoundary($resolvedTimeframe, $from),
+            'to' => $this->formatTimeframeBoundary($resolvedTimeframe, $to),
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
             'rows' => $rows,
             'totals' => $totals,
         ];
@@ -599,8 +652,10 @@ class ReportService
         ?int $invoiceId = null,
         int $perPage = 50,
         int $page = 1,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
     ): array {
-        [$from, $to] = $this->resolveDateRange($fromDate, $toDate, 90);
+        [$from, $to, $resolvedTimeframe] = $this->resolveLedgerRange($fromDate, $toDate, $timeframe, $anchorDate, 90);
 
         $entries = $this->buildGeneralLedgerRows($from, $to, $projectId, $invoiceId)
             ->sort(static function (array $a, array $b): int {
@@ -629,8 +684,11 @@ class ReportService
         $totalAmount = round((float) $entries->sum('amount'), 2);
 
         return [
+            'timeframe' => $resolvedTimeframe,
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
             'entries' => $pagedEntries,
             'pagination' => [
                 'page' => $page,
@@ -652,8 +710,10 @@ class ReportService
         ?int $invoiceId = null,
         int $perPage = 50,
         int $page = 1,
+        string $timeframe = 'month',
+        ?string $anchorDate = null,
     ): array {
-        [$from, $to] = $this->resolveDateRange($fromDate, $toDate, 90);
+        [$from, $to, $resolvedTimeframe] = $this->resolveLedgerRange($fromDate, $toDate, $timeframe, $anchorDate, 90);
 
         $baseQuery = ProjectPayment::query()
             ->with(['project.client', 'invoice', 'recorder'])
@@ -699,8 +759,11 @@ class ReportService
         })->values()->all();
 
         return [
+            'timeframe' => $resolvedTimeframe,
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
+            'period_from' => $from->toDateString(),
+            'period_to' => $to->toDateString(),
             'entries' => $entries,
             'pagination' => [
                 'page' => $page,
@@ -1111,6 +1174,7 @@ class ReportService
         }
 
         $equityEntries = OwnerEquityEntry::query()
+            ->with('owner:id,name')
             ->whereBetween('entry_date', [$fromDate, $toDate])
             ->orderBy('entry_date')
             ->orderBy('id')
@@ -1118,13 +1182,21 @@ class ReportService
 
         foreach ($equityEntries as $equityEntry) {
             $isContribution = $equityEntry->entry_type === 'capital_contribution';
+            $ownerName = optional($equityEntry->owner)->name;
+            $description = $isContribution
+                ? 'Owner capital contribution'
+                : 'Owner drawing withdrawal';
+
+            if ($ownerName) {
+                $description .= " ({$ownerName})";
+            }
 
             $this->appendLedgerRow(
                 $rows,
                 entryDate: optional($equityEntry->entry_date)->toDateString(),
                 entryType: $isContribution ? 'owner_capital' : 'owner_drawing',
                 reference: 'EQT-'.$equityEntry->id,
-                description: $isContribution ? 'Owner capital contribution' : 'Owner drawing withdrawal',
+                description: $description,
                 projectId: null,
                 projectName: null,
                 clientName: null,
@@ -1549,26 +1621,27 @@ class ReportService
             }
 
             $months = max(1, (int) ($expense->prepaid_months ?? 1));
-            $monthly = round($totalAmount / $months, 2);
-            if ($monthly <= 0) {
-                continue;
-            }
-
             $cursor = $expense->prepaid_start_date
                 ? Carbon::parse($expense->prepaid_start_date)->startOfMonth()
                 : Carbon::parse($expense->expense_date)->startOfMonth();
 
-            $remaining = $totalAmount;
-            for ($i = 0; $i < $months; $i++) {
-                if ($remaining <= 0.009 || $cursor->greaterThan($asOf->copy()->startOfMonth())) {
+            for ($i = 1; $i <= $months; $i++) {
+                if ($cursor->greaterThan($asOf->copy()->startOfMonth())) {
                     break;
                 }
 
-                $allocation = round(min($monthly, $remaining), 2);
+                $cumulativeCurrent = round(($totalAmount * $i) / $months, 2);
+                $cumulativePrevious = round(($totalAmount * ($i - 1)) / $months, 2);
+                $allocation = round(max(0, $cumulativeCurrent - $cumulativePrevious), 2);
+
+                if ($allocation <= 0) {
+                    $cursor->addMonth();
+                    continue;
+                }
+
                 $key = $cursor->format('Y-m');
                 $series[$key] = round(($series[$key] ?? 0) + $allocation, 2);
 
-                $remaining = round($remaining - $allocation, 2);
                 $cursor->addMonth();
             }
         }
@@ -1637,6 +1710,259 @@ class ReportService
         }
 
         return (float) ($policy['corporate_tax_rate'] ?? 30);
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function resolveReportRange(
+        ?string $fromDate,
+        ?string $toDate,
+        string $timeframe,
+        ?string $anchorDate,
+        int $defaultMonthPeriods,
+    ): array {
+        $resolvedTimeframe = TimeframeRange::normalize($timeframe);
+
+        if ($fromDate || $toDate) {
+            if ($resolvedTimeframe === 'month') {
+                $fromMonth = $fromDate ? Carbon::parse($fromDate)->startOfMonth()->toDateString() : null;
+                $toMonth = $toDate ? Carbon::parse($toDate)->startOfMonth()->toDateString() : null;
+                [$from, $to] = $this->resolveRange($fromMonth, $toMonth, $defaultMonthPeriods);
+
+                return [$from->copy()->startOfMonth(), $to->copy()->endOfMonth(), $resolvedTimeframe];
+            }
+
+            [$from, $to] = $this->resolveDateRange(
+                $fromDate,
+                $toDate,
+                $this->defaultDaysForTimeframe($resolvedTimeframe, $defaultMonthPeriods),
+            );
+
+            return [$from, $to, $resolvedTimeframe];
+        }
+
+        [$from, $to] = TimeframeRange::historyBounds(
+            $resolvedTimeframe,
+            $this->defaultPeriodsForTimeframe($resolvedTimeframe, $defaultMonthPeriods),
+            $anchorDate,
+        );
+
+        return [$from->copy()->startOfDay(), $to->copy()->endOfDay(), $resolvedTimeframe];
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function resolveLedgerRange(
+        ?string $fromDate,
+        ?string $toDate,
+        string $timeframe,
+        ?string $anchorDate,
+        int $defaultDays,
+    ): array {
+        $resolvedTimeframe = TimeframeRange::normalize($timeframe);
+
+        if ($fromDate || $toDate) {
+            [$from, $to] = $this->resolveDateRange($fromDate, $toDate, $defaultDays);
+
+            return [$from, $to, $resolvedTimeframe];
+        }
+
+        $defaultPeriods = match ($resolvedTimeframe) {
+            'day' => max(1, $defaultDays),
+            'week' => max(1, (int) ceil($defaultDays / 7)),
+            'year' => max(1, (int) ceil($defaultDays / 365)),
+            default => max(1, (int) ceil($defaultDays / 30)),
+        };
+
+        [$from, $to] = TimeframeRange::historyBounds($resolvedTimeframe, $defaultPeriods, $anchorDate);
+
+        return [$from->copy()->startOfDay(), $to->copy()->endOfDay(), $resolvedTimeframe];
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function resolveAsOfWindow(?string $asOfDate, string $timeframe, ?string $anchorDate): array
+    {
+        $resolvedTimeframe = TimeframeRange::normalize($timeframe);
+
+        if ($asOfDate) {
+            $asOf = Carbon::parse($asOfDate)->endOfDay();
+            $from = match ($resolvedTimeframe) {
+                'day' => $asOf->copy()->startOfDay(),
+                'week' => $asOf->copy()->startOfWeek(),
+                'year' => $asOf->copy()->startOfYear(),
+                default => $asOf->copy()->startOfMonth(),
+            };
+            $to = $asOf->copy();
+
+            return [$from, $to, $resolvedTimeframe];
+        }
+
+        [$from, $to] = TimeframeRange::bounds($resolvedTimeframe, $anchorDate);
+
+        return [$from, $to, $resolvedTimeframe];
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, start: Carbon, end: Carbon}>
+     */
+    private function periodsInRange(Carbon $from, Carbon $to, string $timeframe): array
+    {
+        return TimeframeRange::periods($timeframe, $from, $to);
+    }
+
+    private function formatTimeframeBoundary(string $timeframe, Carbon $date): string
+    {
+        $resolvedTimeframe = TimeframeRange::normalize($timeframe);
+
+        return match ($resolvedTimeframe) {
+            'day' => $date->toDateString(),
+            'week' => TimeframeRange::key('week', $date->copy()->startOfWeek()),
+            'year' => $date->format('Y'),
+            default => $date->format('Y-m'),
+        };
+    }
+
+    /**
+     * @return array{gross: float, net: float, tax: float, recoveries: float, tds: float}
+     */
+    private function payrollAccruedComponentsForPeriod(Carbon $from, Carbon $to): array
+    {
+        $rows = SalaryMonth::query()
+            ->whereIn('status', self::PAYROLL_ACCRUAL_STATUSES)
+            ->whereDate('month', '>=', $from->copy()->startOfMonth()->toDateString())
+            ->whereDate('month', '<=', $to->copy()->startOfMonth()->toDateString())
+            ->get([
+                'month',
+                'gross_earnings',
+                'net_payable',
+                'tds_deduction',
+                'pf_deduction',
+                'professional_tax',
+                'unpaid_leave_deduction',
+                'late_penalty_deduction',
+                'loan_emi_deduction',
+            ]);
+
+        $components = [
+            'gross' => 0.0,
+            'net' => 0.0,
+            'tax' => 0.0,
+            'recoveries' => 0.0,
+            'tds' => 0.0,
+        ];
+
+        foreach ($rows as $row) {
+            $monthStart = Carbon::parse($row->month)->startOfMonth();
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            [$activeDays, $daysInMonth] = $this->overlapDaysWithinPeriod($from, $to, $monthStart, $monthEnd);
+
+            if ($activeDays <= 0) {
+                continue;
+            }
+
+            $ratio = $activeDays / $daysInMonth;
+            $taxAmount = (float) $row->tds_deduction + (float) $row->pf_deduction + (float) $row->professional_tax;
+            $recoveriesAmount = (float) $row->unpaid_leave_deduction + (float) $row->late_penalty_deduction + (float) $row->loan_emi_deduction;
+
+            $components['gross'] += (float) $row->gross_earnings * $ratio;
+            $components['net'] += (float) $row->net_payable * $ratio;
+            $components['tax'] += $taxAmount * $ratio;
+            $components['recoveries'] += $recoveriesAmount * $ratio;
+            $components['tds'] += (float) $row->tds_deduction * $ratio;
+        }
+
+        return array_map(static fn ($value): float => round((float) $value, 2), $components);
+    }
+
+    private function depreciationForPeriod(Carbon $from, Carbon $to): float
+    {
+        $series = $this->depreciationSeries($to->copy()->endOfMonth());
+        $cursor = $from->copy()->startOfMonth();
+        $endMonth = $to->copy()->startOfMonth();
+        $total = 0.0;
+
+        while ($cursor->lessThanOrEqualTo($endMonth)) {
+            $monthStart = $cursor->copy()->startOfMonth();
+            $monthEnd = $cursor->copy()->endOfMonth();
+            $monthKey = $monthStart->format('Y-m');
+            $amount = (float) ($series[$monthKey] ?? 0.0);
+
+            if ($amount > 0) {
+                [$activeDays, $daysInMonth] = $this->overlapDaysWithinPeriod($from, $to, $monthStart, $monthEnd);
+                if ($activeDays > 0) {
+                    $total += $amount * ($activeDays / $daysInMonth);
+                }
+            }
+
+            $cursor->addMonth();
+        }
+
+        return round($total, 2);
+    }
+
+    private function liabilityCostForPeriod(Carbon $from, Carbon $to): float
+    {
+        $cursor = $from->copy()->startOfMonth();
+        $endMonth = $to->copy()->startOfMonth();
+        $total = 0.0;
+
+        while ($cursor->lessThanOrEqualTo($endMonth)) {
+            $monthStart = $cursor->copy()->startOfMonth();
+            $monthEnd = $cursor->copy()->endOfMonth();
+            $monthlyCost = $this->liabilityMonthlyCostForMonth($monthStart, $monthEnd);
+
+            if ($monthlyCost > 0) {
+                [$activeDays, $daysInMonth] = $this->overlapDaysWithinPeriod($from, $to, $monthStart, $monthEnd);
+                if ($activeDays > 0) {
+                    $total += $monthlyCost * ($activeDays / $daysInMonth);
+                }
+            }
+
+            $cursor->addMonth();
+        }
+
+        return round($total, 2);
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function overlapDaysWithinPeriod(Carbon $from, Carbon $to, Carbon $windowStart, Carbon $windowEnd): array
+    {
+        $start = $from->greaterThan($windowStart) ? $from->copy()->startOfDay() : $windowStart->copy()->startOfDay();
+        $end = $to->lessThan($windowEnd) ? $to->copy()->endOfDay() : $windowEnd->copy()->endOfDay();
+
+        if ($start->greaterThan($end)) {
+            return [0, max(1, (int) $windowStart->daysInMonth)];
+        }
+
+        $activeDays = (int) $start->diffInDays($end) + 1;
+
+        return [$activeDays, max(1, (int) $windowStart->daysInMonth)];
+    }
+
+    private function defaultPeriodsForTimeframe(string $timeframe, int $defaultMonthPeriods): int
+    {
+        return match ($timeframe) {
+            'day' => 30,
+            'week' => 12,
+            'year' => 5,
+            default => max(1, $defaultMonthPeriods),
+        };
+    }
+
+    private function defaultDaysForTimeframe(string $timeframe, int $defaultMonthPeriods): int
+    {
+        return match ($timeframe) {
+            'day' => 30,
+            'week' => 84,
+            'year' => 365 * 5,
+            default => max(1, $defaultMonthPeriods) * 30,
+        };
     }
 
     /**

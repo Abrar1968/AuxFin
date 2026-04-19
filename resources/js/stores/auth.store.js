@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { AuthService } from '../services/auth.service';
 
-const TOKEN_KEY = 'finerp_token';
+const TOKEN_KEY = 'auxfin_token';
 
 export const useAuthStore = defineStore('auth', () => {
     const token = ref(localStorage.getItem(TOKEN_KEY));

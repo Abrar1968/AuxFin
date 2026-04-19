@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class SecurityAudit extends Command
 {
-    protected $signature = 'finerp:security:audit';
+    protected $signature = 'auxfin:security:audit';
 
     protected $description = 'Run a basic runtime security checklist for production readiness';
 

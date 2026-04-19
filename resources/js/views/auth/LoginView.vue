@@ -7,7 +7,7 @@
             <div class="space-y-2">
                 <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Welcome Back</h1>
                 <p class="text-sm leading-relaxed text-slate-600">
-                    Sign in with your organization credentials to continue to the FinERP operations workspace.
+                    Sign in with your organization credentials to continue to the AuxFin operations workspace.
                 </p>
             </div>
         </header>

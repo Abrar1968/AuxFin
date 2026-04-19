@@ -1,4 +1,4 @@
-export const APP_NAME = 'FinERP';
+export const APP_NAME = 'AuxFin';
 
 export const USER_ROLE_OPTIONS = [
     { label: 'Employee', value: 'employee' },

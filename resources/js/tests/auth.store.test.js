@@ -31,7 +31,7 @@ describe('auth store', () => {
 
         expect(store.token).toBe('token-123');
         expect(store.user?.name).toBe('Admin User');
-        expect(localStorage.getItem('finerp_token')).toBe('token-123');
+        expect(localStorage.getItem('auxfin_token')).toBe('token-123');
     });
 
     it('fetchMe sets user and hard resets on failure', async () => {

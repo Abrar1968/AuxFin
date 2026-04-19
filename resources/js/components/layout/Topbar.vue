@@ -11,7 +11,10 @@
                 </button>
 
                 <div class="min-w-0">
-                    <p class="text-[11px] uppercase tracking-[0.12em] text-sky-700/80">FinERP Workspace</p>
+                    <p class="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-sky-700/80">
+                        <img :src="logoUrl" alt="AuxFin logo" class="h-4 w-4 rounded-sm object-cover">
+                        AuxFin Workspace
+                    </p>
                     <h2 class="truncate text-lg font-extrabold text-slate-900">{{ title }}</h2>
                 </div>
             </div>
@@ -78,6 +81,7 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const mobileMenuOpen = ref(false);
+const logoUrl = '/images/logo.jpg';
 
 const initials = computed(() => {
     const source = String(auth.user?.name ?? 'U').trim();
@@ -125,7 +129,7 @@ const title = computed(() => {
         'employee.docs': 'Employee Docs Manual',
     };
 
-    return map[route.name] ?? 'FinERP';
+    return map[route.name] ?? 'AuxFin';
 });
 
 watch(

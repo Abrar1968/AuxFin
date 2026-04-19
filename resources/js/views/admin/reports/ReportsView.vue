@@ -10,7 +10,13 @@
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Reporting Controls</h2>
-            <div class="mt-3 grid md:grid-cols-3 gap-3">
+            <div class="mt-3 grid md:grid-cols-4 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Timeframe</label>
+                    <select v-model="filters.timeframe" class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        <option v-for="option in timeframeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </div>
                 <div>
                     <label class="text-xs font-semibold text-slate-600">From Month</label>
                     <input v-model="filters.from_month" type="date" class="block mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
@@ -26,6 +32,7 @@
             </div>
 
             <div class="mt-4 flex flex-wrap gap-2">
+                <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="applyTimeframePreset">Apply Timeframe Preset</button>
                 <button class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold" @click="loadAll">Refresh Reports</button>
                 <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="downloadProfitLoss">Export P&L PDF</button>
                 <button class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" @click="downloadTax">Export Tax PDF</button>
@@ -123,9 +130,16 @@ const loading = ref(false);
 const profitLoss = ref({ rows: [], totals: {} });
 const taxSummary = ref({ rows: [], totals: {} });
 const arAging = ref({ distribution: {}, items: [], health: {} });
+const timeframeOptions = [
+    { value: 'day', label: 'Day Wise' },
+    { value: 'week', label: 'Week Wise' },
+    { value: 'month', label: 'Month Wise' },
+    { value: 'year', label: 'Year Wise' },
+];
 
 const now = new Date();
 const filters = reactive({
+    timeframe: 'month',
     from_month: new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().slice(0, 10),
     to_month: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10),
     as_of: now.toISOString().slice(0, 10),
@@ -148,12 +162,18 @@ async function loadAll() {
         const params = {
             from_month: filters.from_month,
             to_month: filters.to_month,
+            timeframe: filters.timeframe,
+            anchor_date: filters.as_of,
         };
 
         const [pl, tx, ar] = await Promise.all([
             ReportService.profitLoss(params),
             ReportService.taxSummary(params),
-            ReportService.arAging({ as_of: filters.as_of }),
+            ReportService.arAging({
+                as_of: filters.as_of,
+                timeframe: filters.timeframe,
+                anchor_date: filters.as_of,
+            }),
         ]);
 
         profitLoss.value = pl.data;
@@ -164,6 +184,35 @@ async function loadAll() {
     } finally {
         loading.value = false;
     }
+}
+
+function applyTimeframePreset() {
+    const anchor = new Date(filters.as_of || new Date().toISOString().slice(0, 10));
+    if (Number.isNaN(anchor.getTime())) {
+        return;
+    }
+
+    const formatDate = (date) => date.toISOString().slice(0, 10);
+    let from = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+    let to = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+
+    if (filters.timeframe === 'week') {
+        const day = from.getDay();
+        const offset = day === 0 ? -6 : 1 - day;
+        from.setDate(from.getDate() + offset);
+        to = new Date(from);
+        to.setDate(to.getDate() + 6);
+    } else if (filters.timeframe === 'month') {
+        from = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+        to = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    } else if (filters.timeframe === 'year') {
+        from = new Date(anchor.getFullYear(), 0, 1);
+        to = new Date(anchor.getFullYear(), 11, 31);
+    }
+
+    filters.from_month = formatDate(from);
+    filters.to_month = formatDate(to);
+    filters.as_of = formatDate(to);
 }
 
 function downloadProfitLoss() {

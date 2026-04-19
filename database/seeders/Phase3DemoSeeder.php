@@ -17,8 +17,8 @@ class Phase3DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = User::query()->where('email', 'admin@finerp.local')->first()
-            ?? User::query()->where('email', 'owner@finerp.local')->first();
+        $admin = User::query()->where('email', 'admin@auxfin.local')->first()
+            ?? User::query()->where('email', 'owner@auxfin.local')->first();
 
         if (! $admin) {
             return;

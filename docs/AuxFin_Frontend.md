@@ -1,4 +1,4 @@
-# FinERP — Frontend Development Guide
+# AuxFin — Frontend Development Guide
 
 **Vue.js 3 (Composition API) · TailwindCSS v4 · Pinia · Pusher + Laravel Echo**
 
@@ -97,6 +97,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 13. [Router & Route Guards](#13-router--route-guards)
 14. [All Views Reference](#14-all-views-reference)
 15. [Development Roadmap](#15-development-roadmap)
+16. [Analytics Playbook](#16-analytics-playbook)
 
 ---
 
@@ -119,7 +120,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 ## 2. Clean Architecture Overview
 
-FinERP frontend follows a strict **separation of concerns** across 5 layers:
+AuxFin frontend follows a strict **separation of concerns** across 5 layers:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -301,7 +302,7 @@ src/
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  TOPBAR (h-16, sticky)                                   │
-│  [☰ Menu]  FinERP Logo         [🔔 Bell (N)]  [Avatar]  │
+│  [☰ Menu]  AuxFin Logo         [🔔 Bell (N)]  [Avatar]  │
 ├────────────────┬─────────────────────────────────────────┤
 │                │                                         │
 │  SIDEBAR       │  MAIN CONTENT AREA                      │
@@ -388,7 +389,7 @@ Avatar Dropdown:
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  TOPBAR (h-16, sticky)                                   │
-│  [☰]  FinERP Employee Portal        [🔔 Bell]  [Avatar] │
+│  [☰]  AuxFin Employee Portal        [🔔 Bell]  [Avatar] │
 ├───────────────┬──────────────────────────────────────────┤
 │               │                                          │
 │  SIDEBAR      │  MAIN CONTENT AREA                       │
@@ -1177,4 +1178,82 @@ router.beforeEach((to, from, next) => {
 
 ---
 
-*— FinERP Frontend Guide v2.0 — Vue.js 3 · TailwindCSS v4 · Pinia · Pusher + Laravel Echo —*
+## 16. Analytics Playbook
+
+### 16.1 Where Analytics Live
+
+| Area | Route | What You Monitor |
+|---|---|---|
+| Executive Dashboard | `/admin/dashboard` | Runway scenario, AR health index, anomaly actions, forecast spread, KPI trend focus |
+| Analytics Overview | `/admin/analytics` | Revenue and net profit trend, CMGR bars, runway, AR health score, anomaly table |
+| Growth Dashboard | `/admin/growth` | Growth velocity cards, revenue quality, payroll efficiency, net-profit trend, headcount trend |
+| Reports Workspace | `/admin/reports` | Profit and loss line trend, tax bars, AR aging distribution and health |
+| Accounting Workspace | `/admin/accounting` | Trial balance integrity, balance sheet consistency, cash flow and ledger reconciliation |
+| Docs Manual | `/admin/docs` | Interactive analytics playbook with metric-level chart guidance and scenario calculators |
+
+### 16.2 Chart-by-Chart Guidance
+
+| Chart / Widget | Main Signal | Recommended Use |
+|---|---|---|
+| `LineChart` Revenue Trend | Direction and momentum over time | Validate if top-line growth is real and sustained before scaling fixed costs |
+| `LineChart` Net Profit Trend | Margin quality over time | Detect margin compression early and cross-check payroll/OpEx drift |
+| `BarChart` CMGR Metrics | Relative growth rates by dimension | Compare Revenue CMGR against Payroll and OpEx CMGR for efficiency decisions |
+| `GaugeChart` Runway | Months of cash available at current burn | Set operating guardrails for hiring, expansion, and discretionary spend |
+| `GaugeChart` AR Health | Weighted receivable quality score | Prioritize collection operations when score degrades |
+| `ProgressBar` Runway Percent | Distance from 12-month target | Use as a quick board-level risk indicator |
+| Anomaly Table (Z-score) | Expense outliers | Trigger category-level variance investigation when `abs(z) > 2.5` |
+| Forecast Cards P10/P50/P90 | Downside/base/upside collection scenarios | Plan baseline from P50 and stress-test liquidity using P10 |
+
+### 16.3 Operational Decision Flow
+
+1. Start in `/admin/dashboard` for macro risk posture.
+2. If runway is weak, open `/admin/analytics` and verify burn, AR health, and anomalies.
+3. If margin quality is weak, open `/admin/growth` and compare revenue velocity versus payroll velocity.
+4. Confirm statement-level impact in `/admin/reports` and `/admin/accounting` before final decisions.
+5. Document assumptions and values in `/admin/docs` using the interactive analytics playbook calculators.
+
+### 16.4 Key Formula Anchors
+
+- CMGR: `((Final / Initial)^(1 / Months) - 1) x 100`
+- Runway: `Available Cash / Burn Rate`
+- Revenue Quality: `((Revenue - Accounts Receivable) / Revenue) x 100`
+- Payroll Ratio: `(Total Payroll / Total Revenue) x 100`
+- AR Health: weighted score from aging buckets (0-30d, 31-60d, 61-90d, 90plus)
+
+---
+
+## 17. April 2026 Delta — Owner Equity + Timeframe UX
+
+### 17.1 Where Owner Equity Lives
+
+- Owner equity is inside `Admin -> Accounting`.
+- Route: `/admin/accounting`.
+- The section title is **Owner Equity Ledger** and now includes owner profile management + owner-linked entries.
+
+### 17.2 New Owner Equity Frontend Behavior
+
+- Owner profile creation from the accounting view (name, ownership %, initial investment).
+- Ownership health summary cards:
+  - Active ownership percent
+  - Unallocated share percent
+  - Total net owner investment
+- Owner-filtered equity ledger rows.
+- Owner selection required in equity entry flows when owners are configured.
+- Edit modal supports changing owner attribution on a ledger row.
+
+### 17.3 Day/Week/Month/Year Coverage
+
+- Timeframe controls now drive accounting statement payloads and remain aligned with analytics/reporting sections.
+- Supported options: day, week, month, year.
+- Timeframe context is passed via `timeframe` + `anchor_date`.
+
+### 17.4 Operator Checklist
+
+1. Create all owners and ensure active share totals to `100%`.
+2. Post capital contributions/drawings with explicit owner attribution.
+3. Use owner filter in ledger to audit each owner independently.
+4. Verify totals in balance sheet and statement exports.
+
+---
+
+*— AuxFin Frontend Guide v2.0 — Vue.js 3 · TailwindCSS v4 · Pinia · Pusher + Laravel Echo —*

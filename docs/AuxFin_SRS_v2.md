@@ -1,12 +1,12 @@
 # SOFTWARE REQUIREMENTS SPECIFICATION
 
-# FinERP — Enterprise Financial Intelligence & ERP Platform
+# AuxFin — Enterprise Financial Intelligence & ERP Platform
 
 **Version 2.0 | Industry-Grade Edition**
 
 | Field | Detail |
 |---|---|
-| Project Name | FinERP — Enterprise Financial Intelligence & ERP |
+| Project Name | AuxFin — Enterprise Financial Intelligence & ERP |
 | Version | 2.0 (Industry-Grade) |
 | Backend Stack | Laravel 11 (PHP 8.3+) |
 | Frontend Stack | Vue.js 3 (Composition API) + TailwindCSS v4 |
@@ -21,7 +21,7 @@
 
 ### 1.1 Purpose
 
-This SRS defines the complete functional, technical, and analytical requirements for FinERP — an enterprise-grade Financial Intelligence and Human Resource Management platform. The system transforms raw transactional data into strategic intelligence, enabling leadership to make data-driven decisions about growth, hiring, cash flow, and operations.
+This SRS defines the complete functional, technical, and analytical requirements for AuxFin — an enterprise-grade Financial Intelligence and Human Resource Management platform. The system transforms raw transactional data into strategic intelligence, enabling leadership to make data-driven decisions about growth, hiring, cash flow, and operations.
 
 ### 1.2 Gaps Identified from Original Proposal (Now Resolved)
 
@@ -901,4 +901,41 @@ The following items are added to the existing 7-phase roadmap:
 
 ---
 
-*— End of SRS Document — FinERP v2.0 — Laravel 11 · Vue.js 3 · TailwindCSS v4 · MySQL 8 · Pusher —*
+## 19. OWNER EQUITY ENHANCEMENT DELTA (APRIL 2026)
+
+### 19.1 Business Context
+
+AuxFin must support companies with multiple owners where each owner has:
+
+- A defined ownership percentage share.
+- A defined baseline investment value.
+- Ongoing capital contributions and drawings tracked independently.
+
+### 19.2 Functional Requirements
+
+1. System shall maintain an owner registry with `name`, `ownership_percentage`, `initial_investment`, and `active/inactive` status.
+2. System shall enforce active ownership share total `<= 100%`.
+3. System shall require owner attribution on new owner-equity entries when active owners exist.
+4. System shall prevent deleting owners who have linked equity ledger entries.
+5. System shall compute per-owner net investment:
+  - `Net Investment = Initial Investment + Capital Contributions - Drawings`
+6. System shall expose owner summary totals for auditability.
+
+### 19.3 UX Location Requirement
+
+- Owner equity operations are part of the Admin Accounting workspace.
+- Required route: `/admin/accounting`.
+- No dedicated `/admin/equity` route is required.
+
+### 19.4 Verification Requirements
+
+Automated tests must validate:
+
+- 3-owner split setup (example: 50/30/20).
+- Rejection when ownership allocation exceeds 100%.
+- Rejection of owner-equity entry without owner selection (when active owners exist).
+- Correct per-owner net investment values after contribution/drawing events.
+
+---
+
+*— End of SRS Document — AuxFin v2.0 — Laravel 11 · Vue.js 3 · TailwindCSS v4 · MySQL 8 · Pusher —*

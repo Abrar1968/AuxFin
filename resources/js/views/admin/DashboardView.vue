@@ -28,7 +28,7 @@
         </header>
 
         <article class="fin-card p-5 md:p-6 space-y-4">
-            <div class="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+            <div class="grid gap-4 xl:grid-cols-[1.15fr_1fr_1fr]">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.11em] text-slate-500">Time Window</p>
                     <div class="mt-2 flex flex-wrap gap-2">
@@ -55,6 +55,17 @@
                         class="fin-focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700"
                     >
                         <option v-for="option in TREND_METRIC_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold uppercase tracking-[0.11em] text-slate-500" for="timeframe_scope">Timeframe Scope</label>
+                    <select
+                        id="timeframe_scope"
+                        v-model="selectedTimeframe"
+                        class="fin-focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700"
+                    >
+                        <option v-for="option in TIMEFRAME_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
                     </select>
                 </div>
             </div>
@@ -183,7 +194,7 @@
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <h3 class="text-base font-bold text-slate-900">Performance Trend</h3>
-                            <p class="text-xs text-slate-500">{{ trendMetricLabel }} across {{ activeWindowLabel }}</p>
+                            <p class="text-xs text-slate-500">{{ trendMetricLabel }} across {{ activeWindowLabel }} ({{ selectedTimeframeLabel }})</p>
                         </div>
                         <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-slate-600">
                             {{ filteredSeries.length }} points
@@ -261,6 +272,13 @@ const WINDOW_OPTIONS = [
     { value: '12m', label: 'Last 12 Months', points: 12 },
 ];
 
+const TIMEFRAME_OPTIONS = [
+    { value: 'day', label: 'Day Wise' },
+    { value: 'week', label: 'Week Wise' },
+    { value: 'month', label: 'Month Wise' },
+    { value: 'year', label: 'Year Wise' },
+];
+
 const TREND_METRIC_OPTIONS = [
     { value: 'revenue', label: 'Revenue', key: 'total_revenue', color: '#0284c7' },
     { value: 'payroll', label: 'Payroll', key: 'total_payroll', color: '#0f766e' },
@@ -281,6 +299,7 @@ const isLoading = ref(false);
 const isRunwayLoading = ref(false);
 const activeWindow = ref('12m');
 const trendMetric = ref('revenue');
+const selectedTimeframe = ref('month');
 const availableCash = ref(0);
 const hasCustomCashInput = ref(false);
 const autoRefreshEnabled = ref(true);
@@ -318,6 +337,7 @@ const trendSeries = computed(() => {
 const trendMetricLabel = computed(() => trendMetricConfig.value.label);
 const trendColor = computed(() => trendMetricConfig.value.color);
 const activeWindowLabel = computed(() => WINDOW_OPTIONS.find((row) => row.value === activeWindow.value)?.label ?? 'Last 12 Months');
+const selectedTimeframeLabel = computed(() => TIMEFRAME_OPTIONS.find((row) => row.value === selectedTimeframe.value)?.label ?? 'Month Wise');
 
 const trendStats = computed(() => {
     const values = trendSeries.value;
@@ -440,6 +460,10 @@ watch(autoRefreshEnabled, (enabled) => {
     }
 });
 
+watch(selectedTimeframe, () => {
+    loadDashboard();
+});
+
 onMounted(async () => {
     await loadDashboard();
     startAutoRefresh();
@@ -457,13 +481,17 @@ async function loadDashboard() {
     isLoading.value = true;
 
     try {
+        const queryParams = {
+            timeframe: selectedTimeframe.value,
+        };
+
         const [overviewResponse, cmgrResponse, anomalyResponse, forecastResponse, arHealthResponse, growthResponse] = await Promise.all([
-            AnalyticsService.overview(),
-            AnalyticsService.cmgr(),
-            AnalyticsService.anomalies(),
-            AnalyticsService.forecast(),
-            AnalyticsService.arHealth(),
-            AnalyticsService.growth(),
+            AnalyticsService.overview(queryParams),
+            AnalyticsService.cmgr(queryParams),
+            AnalyticsService.anomalies(queryParams),
+            AnalyticsService.forecast(queryParams),
+            AnalyticsService.arHealth(queryParams),
+            AnalyticsService.growth(queryParams),
         ]);
 
         latest.value = overviewResponse.data.latest ?? {};
@@ -495,7 +523,9 @@ async function refreshRunway() {
     isRunwayLoading.value = true;
 
     try {
-        const response = await AnalyticsService.burnRate(Number(availableCash.value ?? 0));
+        const response = await AnalyticsService.burnRate(Number(availableCash.value ?? 0), {
+            timeframe: selectedTimeframe.value,
+        });
         burnRate.value = response.data ?? {};
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to simulate runway with current cash input.'));

@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 class DepreciateAssets extends Command
 {
-    protected $signature = 'finerp:assets:depreciate';
+    protected $signature = 'auxfin:assets:depreciate';
 
     protected $description = 'Apply monthly straight-line depreciation to active assets';
 

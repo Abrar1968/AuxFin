@@ -19,7 +19,7 @@
                                 Operate finance, payroll, and workforce workflows with confidence.
                             </h2>
                             <p class="max-w-xl text-sm text-cyan-50/92 md:text-base">
-                                FinERP unifies financial operations, employee lifecycle, and executive analytics in one secure operations center.
+                                AuxFin unifies financial operations, employee lifecycle, and executive analytics in one secure operations center.
                             </p>
                         </div>
 
@@ -43,8 +43,8 @@
                 <article class="auth-reveal auth-reveal-delay-1 order-1 rounded-[22px] border border-slate-200/80 bg-white p-6 shadow-[0_20px_45px_rgba(15,23,42,0.08)] md:order-2 md:p-8">
                     <div class="mb-6 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
                         <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-700">
-                            <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-(image:--color-gradient) text-[11px] font-black text-white">F</span>
-                            <span class="text-xs font-semibold uppercase tracking-[0.12em]">FinERP Secure Access</span>
+                            <img :src="logoUrl" alt="AuxFin logo" class="h-6 w-6 rounded-full object-cover">
+                            <span class="text-xs font-semibold uppercase tracking-[0.12em]">AuxFin Secure Access</span>
                         </div>
                         <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Version 2.0</span>
                     </div>
@@ -62,4 +62,6 @@
 
 <script setup>
 import { RouterView } from 'vue-router';
+
+const logoUrl = '/images/logo.jpg';
 </script>

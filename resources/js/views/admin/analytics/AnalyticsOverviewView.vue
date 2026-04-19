@@ -11,6 +11,12 @@
         <article class="rounded-2xl border border-slate-200 bg-white p-4">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
+                    <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Timeframe Scope</label>
+                    <select v-model="timeframe" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm min-w-44">
+                        <option v-for="option in timeframeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </div>
+                <div>
                     <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">Available Cash (Runway Input)</label>
                     <input v-model.number="availableCash" type="number" min="0" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
                 </div>
@@ -49,7 +55,7 @@
             </div>
 
             <article class="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Revenue Trend (Last 12 Months)</h3>
+                <h3 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Revenue Trend ({{ activeTimeframeLabel }})</h3>
                 <LineChart :values="revenueSeries" color="#2563eb" :height="210" />
             </article>
 
@@ -113,7 +119,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BarChart from '../../../components/charts/BarChart.vue';
 import GaugeChart from '../../../components/charts/GaugeChart.vue';
 import LineChart from '../../../components/charts/LineChart.vue';
@@ -128,6 +134,14 @@ const analytics = useAnalyticsStore();
 const toast = useToastStore();
 const loading = ref(false);
 const availableCash = ref(0);
+const timeframe = ref('month');
+
+const timeframeOptions = [
+    { value: 'day', label: 'Day Wise' },
+    { value: 'week', label: 'Week Wise' },
+    { value: 'month', label: 'Month Wise' },
+    { value: 'year', label: 'Year Wise' },
+];
 
 const latest = computed(() => analytics.overview?.latest ?? {});
 const series = computed(() => analytics.overview?.series ?? []);
@@ -137,6 +151,7 @@ const forecast = computed(() => analytics.forecast ?? {});
 const arHealth = computed(() => analytics.arHealth ?? {});
 const burnRate = computed(() => analytics.burnRate ?? {});
 const anomalyRows = computed(() => analytics.anomalies ?? []);
+const activeTimeframeLabel = computed(() => timeframeOptions.find((option) => option.value === timeframe.value)?.label ?? 'Month Wise');
 
 const cmgrLabels = computed(() => [
     'Revenue',
@@ -167,7 +182,9 @@ const runwayPercent = computed(() => {
 async function load() {
     loading.value = true;
     try {
-        await analytics.fetchAll(Number(availableCash.value ?? 0));
+        await analytics.fetchAll(Number(availableCash.value ?? 0), {
+            timeframe: timeframe.value,
+        });
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load analytics overview.'));
     } finally {
@@ -178,6 +195,10 @@ async function load() {
 function number(v) {
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(v ?? 0));
 }
+
+watch(timeframe, () => {
+    load();
+});
 
 load();
 </script>

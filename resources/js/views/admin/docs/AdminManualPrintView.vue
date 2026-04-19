@@ -94,16 +94,61 @@
                 </table>
             </div>
         </article>
+
+        <article class="space-y-3">
+            <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Analytics Playbook Matrix</h2>
+
+            <div class="overflow-x-auto">
+                <table class="print-table w-full min-w-240 border border-slate-200 text-left text-xs">
+                    <thead class="bg-slate-100 text-slate-700">
+                        <tr>
+                            <th class="border border-slate-200 p-2 font-semibold">Module</th>
+                            <th class="border border-slate-200 p-2 font-semibold">Metric</th>
+                            <th class="border border-slate-200 p-2 font-semibold">Route</th>
+                            <th class="border border-slate-200 p-2 font-semibold">Chart Type</th>
+                            <th class="border border-slate-200 p-2 font-semibold">Formula</th>
+                            <th class="border border-slate-200 p-2 font-semibold">How To Use</th>
+                            <th class="border border-slate-200 p-2 font-semibold">Decision Guide</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="metric in analyticsMetrics" :key="metric.id" class="align-top">
+                            <td class="border border-slate-200 p-2 font-semibold">{{ metric.module }}</td>
+                            <td class="border border-slate-200 p-2">{{ metric.metric }}</td>
+                            <td class="border border-slate-200 p-2">{{ metric.route }}</td>
+                            <td class="border border-slate-200 p-2">{{ metric.chart }}</td>
+                            <td class="border border-slate-200 p-2 font-mono">{{ metric.formula }}</td>
+                            <td class="border border-slate-200 p-2">
+                                <ul class="list-disc space-y-1 pl-4">
+                                    <li v-for="line in metric.how_to_use" :key="`${metric.id}-use-${line}`">{{ line }}</li>
+                                </ul>
+                            </td>
+                            <td class="border border-slate-200 p-2">
+                                <ul class="list-disc space-y-1 pl-4">
+                                    <li v-for="line in metric.decision_guide" :key="`${metric.id}-decision-${line}`">{{ line }}</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
     </section>
 </template>
 
 <script setup>
 import { RouterLink } from 'vue-router';
 import { exportAdminManualPdf } from '../../../utils/report-pdf';
-import { adminManualEquations, adminManualSections, adminManualTitle } from './admin-manual.data';
+import {
+    adminManualAnalyticsPlaybook,
+    adminManualEquations,
+    adminManualSections,
+    adminManualTitle,
+} from './admin-manual.data';
 
 const sections = adminManualSections;
 const equations = adminManualEquations;
+const analyticsMetrics = adminManualAnalyticsPlaybook;
 const manualTitle = adminManualTitle;
 const generatedAt = new Date().toLocaleString();
 
@@ -113,6 +158,7 @@ function downloadManual() {
         generated_at: new Date().toISOString(),
         sections,
         equations,
+        analytics_metrics: analyticsMetrics,
     });
 }
 

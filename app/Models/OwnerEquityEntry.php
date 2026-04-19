@@ -11,6 +11,7 @@ class OwnerEquityEntry extends Model
     use HasFactory;
 
     protected $fillable = [
+        'business_owner_id',
         'entry_date',
         'entry_type',
         'amount',
@@ -19,9 +20,15 @@ class OwnerEquityEntry extends Model
     ];
 
     protected $casts = [
+        'business_owner_id' => 'integer',
         'entry_date' => 'date',
         'amount' => 'decimal:2',
     ];
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(BusinessOwner::class, 'business_owner_id');
+    }
 
     public function recorder(): BelongsTo
     {

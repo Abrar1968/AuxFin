@@ -13,11 +13,13 @@
         ]"
     >
         <div class="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.15rem] border border-cyan-900/45 bg-(--bg-dark) text-slate-100 shadow-[0_22px_48px_rgba(5,18,34,.48)] ring-1 ring-cyan-200/10">
-            <div class="h-16 shrink-0 px-5 flex items-center border-b border-cyan-900/50">
-                <h1 class="text-lg font-extrabold tracking-wide" :class="collapsed ? 'md:hidden' : ''">FinERP</h1>
-                <span class="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/12 text-sm font-black shadow-[0_8px_16px_rgba(0,0,0,.22)]" :class="collapsed ? '' : 'md:hidden'">
-                    F
-                </span>
+            <div class="h-16 shrink-0 px-5 flex items-center gap-2 border-b border-cyan-900/50">
+                <img
+                    :src="logoUrl"
+                    alt="AuxFin logo"
+                    class="h-9 w-9 rounded-xl object-cover shadow-[0_8px_16px_rgba(0,0,0,.22)]"
+                >
+                <h1 class="text-lg font-extrabold tracking-wide" :class="collapsed ? 'md:hidden' : ''">AuxFin</h1>
             </div>
 
             <nav class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3">
@@ -124,6 +126,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const notifications = useNotificationStore();
 const sectionOrder = ref([]);
+const logoUrl = '/images/logo.jpg';
 
 const initials = computed(() => {
     const source = String(auth.user?.name ?? 'U').trim();
@@ -218,7 +221,7 @@ const orderedSections = computed(() => {
 });
 
 function sectionOrderStorageKey() {
-    return `finerp_sidebar_section_order_${props.role}`;
+    return `auxfin_sidebar_section_order_${props.role}`;
 }
 
 function normalizeOrder(nextOrder, fallbackKeys) {

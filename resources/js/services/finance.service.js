@@ -36,6 +36,10 @@ export const FinanceService = {
     createOwnerEquityEntry: (payload) => api.post('/admin/owner-equity', payload),
     updateOwnerEquityEntry: (id, payload) => api.put(`/admin/owner-equity/${id}`, payload),
     deleteOwnerEquityEntry: (id) => api.delete(`/admin/owner-equity/${id}`),
+    ownerEquityOwners: () => api.get('/admin/owner-equity/owners'),
+    createOwnerEquityOwner: (payload) => api.post('/admin/owner-equity/owners', payload),
+    updateOwnerEquityOwner: (id, payload) => api.put(`/admin/owner-equity/owners/${id}`, payload),
+    deleteOwnerEquityOwner: (id) => api.delete(`/admin/owner-equity/owners/${id}`),
 
     liabilities: (params = {}) => api.get('/admin/liabilities', { params }),
     liabilitiesDueSoon: (params = {}) => api.get('/admin/liabilities-due-soon', { params }),

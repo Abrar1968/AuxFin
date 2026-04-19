@@ -93,7 +93,7 @@ class User extends Authenticatable
 
     public function createTokenName(): string
     {
-        return sprintf('finerp-%s-%d', $this->role, $this->id ?? 0);
+        return sprintf('auxfin-%s-%d', $this->role, $this->id ?? 0);
     }
 
     public function maskBankAccount(?string $account): ?string

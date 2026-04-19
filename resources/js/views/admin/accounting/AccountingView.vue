@@ -17,7 +17,13 @@
 
         <article class="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 class="text-sm font-extrabold uppercase tracking-[0.12em] text-slate-500">Statement Controls</h2>
-            <div class="mt-3 grid gap-3 md:grid-cols-3">
+            <div class="mt-3 grid gap-3 md:grid-cols-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-600">Timeframe</label>
+                    <select v-model="filters.timeframe" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2">
+                        <option v-for="option in timeframeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </div>
                 <div>
                     <label class="text-xs font-semibold text-slate-600">As Of</label>
                     <input v-model="filters.as_of" type="date" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2">
@@ -30,6 +36,10 @@
                     <label class="text-xs font-semibold text-slate-600">To Month</label>
                     <input v-model="filters.to_month" type="date" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2">
                 </div>
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-2">
+                <button class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold" @click="applyTimeframePreset">Apply Timeframe Preset</button>
             </div>
         </article>
 
@@ -54,8 +64,76 @@
                     </div>
                 </div>
 
-                <form class="mt-3 grid gap-3 md:grid-cols-5" @submit.prevent="createOwnerEquityEntry">
+                <div class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Active Ownership</p>
+                        <p class="mt-2 text-lg font-black text-slate-900">{{ number(ownerSummary.total_active_ownership_percent) }}%</p>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Unallocated Share</p>
+                        <p class="mt-2 text-lg font-black" :class="(ownerSummary.unallocated_ownership_percent ?? 0) > 0.01 ? 'text-amber-700' : 'text-emerald-700'">
+                            {{ number(ownerSummary.unallocated_ownership_percent) }}%
+                        </p>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total Net Owner Investment</p>
+                        <p class="mt-2 text-lg font-black text-slate-900">{{ number(ownerSummary.total_net_investment) }}</p>
+                    </div>
+                </div>
+
+                <form class="mt-3 grid gap-3 md:grid-cols-5" @submit.prevent="createBusinessOwner">
+                    <input v-model="ownerForm.name" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Owner name">
+                    <input v-model="ownerForm.ownership_percentage" type="number" min="0" max="100" step="0.01" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Ownership %">
+                    <input v-model="ownerForm.initial_investment" type="number" min="0" step="0.01" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Initial investment">
+                    <input v-model="ownerForm.notes" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Owner notes (optional)">
+                    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Add Owner</button>
+                </form>
+
+                <table class="mt-3 w-full text-sm">
+                    <thead class="bg-slate-100 text-slate-600">
+                        <tr>
+                            <th class="p-3 text-left">Owner</th>
+                            <th class="p-3 text-left">Ownership %</th>
+                            <th class="p-3 text-left">Initial Investment</th>
+                            <th class="p-3 text-left">Contributions</th>
+                            <th class="p-3 text-left">Drawings</th>
+                            <th class="p-3 text-left">Net Investment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="owner in businessOwners" :key="owner.id" class="border-t border-slate-100">
+                            <td class="p-3">
+                                <span class="font-semibold text-slate-800">{{ owner.name }}</span>
+                                <span v-if="!owner.is_active" class="ml-2 rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">inactive</span>
+                            </td>
+                            <td class="p-3">{{ number(owner.ownership_percentage) }}%</td>
+                            <td class="p-3">{{ number(owner.initial_investment) }}</td>
+                            <td class="p-3">{{ number(owner.capital_contributions) }}</td>
+                            <td class="p-3">{{ number(owner.drawings) }}</td>
+                            <td class="p-3">{{ number(owner.net_investment) }}</td>
+                        </tr>
+                        <tr v-if="businessOwners.length === 0">
+                            <td colspan="6" class="p-4 text-center text-slate-500">No owners configured yet. Add your 3 owners first.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-3 grid gap-3 md:grid-cols-4">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600">Filter owner</label>
+                        <select v-model="ownerEquityFilters.business_owner_id" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" @change="onOwnerEquityOwnerFilterChange">
+                            <option value="">All owners</option>
+                            <option v-for="owner in businessOwners" :key="owner.id" :value="owner.id">{{ owner.name }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <form class="mt-3 grid gap-3 md:grid-cols-6" @submit.prevent="createOwnerEquityEntry">
                     <input v-model="ownerEquityForm.entry_date" type="date" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <select v-model="ownerEquityForm.business_owner_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" :disabled="businessOwners.length === 0">
+                        <option value="">Select owner</option>
+                        <option v-for="owner in businessOwners" :key="owner.id" :value="owner.id">{{ owner.name }}</option>
+                    </select>
                     <select v-model="ownerEquityForm.entry_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                         <option value="capital_contribution">Capital Contribution</option>
                         <option value="drawing">Drawing</option>
@@ -69,6 +147,7 @@
                     <thead class="bg-slate-100 text-slate-600">
                         <tr>
                             <th class="p-3 text-left">Date</th>
+                            <th class="p-3 text-left">Owner</th>
                             <th class="p-3 text-left">Type</th>
                             <th class="p-3 text-left">Amount</th>
                             <th class="p-3 text-left">Notes</th>
@@ -78,6 +157,7 @@
                     <tbody>
                         <tr v-for="entry in ownerEquity.rows" :key="entry.id" class="border-t border-slate-100">
                             <td class="p-3">{{ entry.entry_date }}</td>
+                            <td class="p-3">{{ entry.owner?.name ?? 'Unassigned' }}</td>
                             <td class="p-3">{{ String(entry.entry_type ?? '').replaceAll('_', ' ') }}</td>
                             <td class="p-3">{{ number(entry.amount) }}</td>
                             <td class="p-3">{{ entry.notes ?? '-' }}</td>
@@ -87,7 +167,7 @@
                             </td>
                         </tr>
                         <tr v-if="ownerEquity.rows.length === 0">
-                            <td colspan="5" class="p-4 text-center text-slate-500">No owner equity entries found.</td>
+                            <td colspan="6" class="p-4 text-center text-slate-500">No owner equity entries found.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -412,6 +492,10 @@
             <AppModal v-model="showOwnerEquityEditModal" title="Edit Owner Equity Entry" size="md">
                 <form class="grid gap-3" @submit.prevent="submitOwnerEquityEdit">
                     <input v-model="ownerEquityEditForm.entry_date" type="date" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <select v-model="ownerEquityEditForm.business_owner_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" :disabled="businessOwners.length === 0">
+                        <option value="">Select owner</option>
+                        <option v-for="owner in businessOwners" :key="owner.id" :value="owner.id">{{ owner.name }}</option>
+                    </select>
                     <select v-model="ownerEquityEditForm.entry_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                         <option value="capital_contribution">Capital Contribution</option>
                         <option value="drawing">Drawing</option>
@@ -453,6 +537,8 @@ const balanceSheet = ref({ assets: {}, liabilities: {}, equity: {}, totals: {} }
 const cashFlow = ref({ rows: [], totals: {} });
 const generalLedger = ref({ entries: [], summary: {}, pagination: {} });
 const paymentLedger = ref({ entries: [], summary: {}, pagination: {} });
+const businessOwners = ref([]);
+const ownerSummary = ref({});
 const ownerEquity = ref({
     rows: [],
     pagination: {
@@ -465,14 +551,23 @@ const ownerEquity = ref({
 const ownerEquityFilters = reactive({
     page: 1,
     per_page: 20,
+    business_owner_id: '',
+});
+const ownerForm = reactive({
+    name: '',
+    ownership_percentage: '',
+    initial_investment: '',
+    notes: '',
 });
 const ownerEquityForm = reactive({
+    business_owner_id: '',
     entry_date: new Date().toISOString().slice(0, 10),
     entry_type: 'capital_contribution',
     amount: '',
     notes: '',
 });
 const ownerEquityEditForm = reactive({
+    business_owner_id: '',
     entry_date: new Date().toISOString().slice(0, 10),
     entry_type: 'capital_contribution',
     amount: '',
@@ -481,8 +576,16 @@ const ownerEquityEditForm = reactive({
 const showOwnerEquityEditModal = ref(false);
 const editOwnerEquityId = ref(null);
 
+const timeframeOptions = [
+    { value: 'day', label: 'Day Wise' },
+    { value: 'week', label: 'Week Wise' },
+    { value: 'month', label: 'Month Wise' },
+    { value: 'year', label: 'Year Wise' },
+];
+
 const now = new Date();
 const filters = reactive({
+    timeframe: 'month',
     as_of: now.toISOString().slice(0, 10),
     from_month: new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().slice(0, 10),
     to_month: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10),
@@ -516,6 +619,35 @@ function toMonthEndDate(value) {
     return monthEnd.toISOString().slice(0, 10);
 }
 
+function applyTimeframePreset() {
+    const anchor = new Date(filters.as_of || new Date().toISOString().slice(0, 10));
+    if (Number.isNaN(anchor.getTime())) {
+        return;
+    }
+
+    const formatDate = (date) => date.toISOString().slice(0, 10);
+    let from = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+    let to = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+
+    if (filters.timeframe === 'week') {
+        const day = from.getDay();
+        const offset = day === 0 ? -6 : 1 - day;
+        from.setDate(from.getDate() + offset);
+        to = new Date(from);
+        to.setDate(to.getDate() + 6);
+    } else if (filters.timeframe === 'month') {
+        from = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+        to = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    } else if (filters.timeframe === 'year') {
+        from = new Date(anchor.getFullYear(), 0, 1);
+        to = new Date(anchor.getFullYear(), 11, 31);
+    }
+
+    filters.from_month = formatDate(from);
+    filters.to_month = formatDate(to);
+    filters.as_of = formatDate(to);
+}
+
 function optionalPositiveInt(value) {
     const parsed = Number(value);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -525,6 +657,8 @@ function ledgerDateParams() {
     return {
         from_date: filters.from_month,
         to_date: toMonthEndDate(filters.to_month),
+        timeframe: filters.timeframe,
+        anchor_date: filters.as_of,
     };
 }
 
@@ -533,14 +667,29 @@ async function loadAll() {
 
     try {
         const [tb, bs, cf] = await Promise.all([
-            ReportService.trialBalance({ as_of: filters.as_of }),
-            ReportService.balanceSheet({ as_of: filters.as_of }),
-            ReportService.cashFlow({ from_month: filters.from_month, to_month: filters.to_month }),
+            ReportService.trialBalance({
+                as_of: filters.as_of,
+                timeframe: filters.timeframe,
+                anchor_date: filters.as_of,
+            }),
+            ReportService.balanceSheet({
+                as_of: filters.as_of,
+                timeframe: filters.timeframe,
+                anchor_date: filters.as_of,
+            }),
+            ReportService.cashFlow({
+                from_month: filters.from_month,
+                to_month: filters.to_month,
+                timeframe: filters.timeframe,
+                anchor_date: filters.as_of,
+            }),
         ]);
 
         trialBalance.value = tb.data;
         balanceSheet.value = bs.data;
         cashFlow.value = cf.data;
+
+        await loadBusinessOwners(true);
 
         await Promise.all([
             loadGeneralLedger(true, true),
@@ -662,16 +811,64 @@ function nextPaymentLedgerPage() {
     loadPaymentLedger(false);
 }
 
+async function loadBusinessOwners(silent = false) {
+    try {
+        const response = await FinanceService.ownerEquityOwners();
+
+        businessOwners.value = response.data.owners ?? [];
+        ownerSummary.value = response.data.summary ?? {};
+
+        if (businessOwners.value.length > 0 && !optionalPositiveInt(ownerEquityForm.business_owner_id)) {
+            ownerEquityForm.business_owner_id = String(businessOwners.value[0].id);
+        }
+    } catch (error) {
+        if (!silent) {
+            toast.error(getApiErrorMessage(error, 'Unable to load owner profiles.'));
+        }
+    }
+}
+
+async function createBusinessOwner() {
+    try {
+        await FinanceService.createOwnerEquityOwner({
+            name: ownerForm.name,
+            ownership_percentage: Number(ownerForm.ownership_percentage),
+            initial_investment: Number(ownerForm.initial_investment || 0),
+            notes: ownerForm.notes || null,
+            is_active: true,
+        });
+
+        ownerForm.name = '';
+        ownerForm.ownership_percentage = '';
+        ownerForm.initial_investment = '';
+        ownerForm.notes = '';
+
+        toast.success('Business owner added successfully.');
+
+        await loadBusinessOwners(true);
+        await loadOwnerEquity(true, true);
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to add business owner.'));
+    }
+}
+
 async function loadOwnerEquity(resetPage = false, silent = false) {
     if (resetPage) {
         ownerEquityFilters.page = 1;
     }
 
     try {
-        const response = await FinanceService.ownerEquityEntries({
+        const params = {
             page: ownerEquityFilters.page,
             per_page: ownerEquityFilters.per_page,
-        });
+        };
+
+        const ownerId = optionalPositiveInt(ownerEquityFilters.business_owner_id);
+        if (ownerId) {
+            params.business_owner_id = ownerId;
+        }
+
+        const response = await FinanceService.ownerEquityEntries(params);
 
         ownerEquity.value = {
             rows: response.data.data ?? [],
@@ -682,6 +879,14 @@ async function loadOwnerEquity(resetPage = false, silent = false) {
                 last_page: Number(response.data.last_page ?? 1),
             },
         };
+
+        if (Array.isArray(response.data.owners)) {
+            businessOwners.value = response.data.owners;
+        }
+
+        if (response.data.ownership_summary) {
+            ownerSummary.value = response.data.ownership_summary;
+        }
 
         ownerEquityFilters.page = ownerEquity.value.pagination.page;
     } catch (error) {
@@ -694,6 +899,7 @@ async function loadOwnerEquity(resetPage = false, silent = false) {
 async function createOwnerEquityEntry() {
     try {
         await FinanceService.createOwnerEquityEntry({
+            business_owner_id: optionalPositiveInt(ownerEquityForm.business_owner_id),
             entry_date: ownerEquityForm.entry_date,
             entry_type: ownerEquityForm.entry_type,
             amount: Number(ownerEquityForm.amount),
@@ -712,6 +918,7 @@ async function createOwnerEquityEntry() {
 
 function openOwnerEquityEditModal(entry) {
     editOwnerEquityId.value = entry.id;
+    ownerEquityEditForm.business_owner_id = entry.business_owner_id ? String(entry.business_owner_id) : '';
     ownerEquityEditForm.entry_date = entry.entry_date ?? new Date().toISOString().slice(0, 10);
     ownerEquityEditForm.entry_type = entry.entry_type ?? 'capital_contribution';
     ownerEquityEditForm.amount = String(entry.amount ?? '0');
@@ -726,6 +933,7 @@ async function submitOwnerEquityEdit() {
 
     try {
         await FinanceService.updateOwnerEquityEntry(editOwnerEquityId.value, {
+            business_owner_id: optionalPositiveInt(ownerEquityEditForm.business_owner_id),
             entry_date: ownerEquityEditForm.entry_date,
             entry_type: ownerEquityEditForm.entry_type,
             amount: Number(ownerEquityEditForm.amount),
@@ -755,6 +963,11 @@ async function removeOwnerEquityEntry(id) {
 }
 
 async function onOwnerEquityPerPageChange() {
+    ownerEquityFilters.page = 1;
+    await loadOwnerEquity(false);
+}
+
+async function onOwnerEquityOwnerFilterChange() {
     ownerEquityFilters.page = 1;
     await loadOwnerEquity(false);
 }

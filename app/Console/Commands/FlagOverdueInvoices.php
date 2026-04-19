@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class FlagOverdueInvoices extends Command
 {
-    protected $signature = 'finerp:invoices:flag-overdue';
+    protected $signature = 'auxfin:invoices:flag-overdue';
 
     protected $description = 'Flag invoices as overdue when due date has passed and payment is not completed';
 

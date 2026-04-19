@@ -11,8 +11,8 @@ class DemoEmployeesSeeder extends Seeder
 {
     public function run(): void
     {
-        $creator = User::query()->where('email', 'admin@finerp.local')->first()
-            ?? User::query()->where('email', 'owner@finerp.local')->first();
+        $creator = User::query()->where('email', 'admin@auxfin.local')->first()
+            ?? User::query()->where('email', 'owner@auxfin.local')->first();
 
         $departments = [];
         foreach (['Engineering', 'Finance', 'Operations'] as $name) {
@@ -22,7 +22,7 @@ class DemoEmployeesSeeder extends Seeder
         $employees = [
             [
                 'name' => 'Sadia Rahman',
-                'email' => 'sadia@finerp.local',
+                'email' => 'sadia@auxfin.local',
                 'passkey' => 'Sadia#2026',
                 'employee_code' => 'EMP-0101',
                 'department' => 'Engineering',
@@ -40,7 +40,7 @@ class DemoEmployeesSeeder extends Seeder
             ],
             [
                 'name' => 'Fahim Chowdhury',
-                'email' => 'fahim@finerp.local',
+                'email' => 'fahim@auxfin.local',
                 'passkey' => 'Fahim#2026',
                 'employee_code' => 'EMP-0102',
                 'department' => 'Finance',
@@ -58,7 +58,7 @@ class DemoEmployeesSeeder extends Seeder
             ],
             [
                 'name' => 'Nabila Karim',
-                'email' => 'nabila@finerp.local',
+                'email' => 'nabila@auxfin.local',
                 'passkey' => 'Nabila#2026',
                 'employee_code' => 'EMP-0103',
                 'department' => 'Operations',

@@ -1,4 +1,4 @@
-# FinERP Button QA Matrix (Admin + Employee)
+# AuxFin Button QA Matrix (Admin + Employee)
 
 Generated on: 2026-04-16
 Environment: <http://127.0.0.1:8000> (Laravel + Vue SPA)
@@ -23,7 +23,7 @@ Environment: <http://127.0.0.1:8000> (Laravel + Vue SPA)
 | 6 | /admin/expenses | Sidebar: Expenses | PASS | Route loaded and actions visible. |
 | 7 | /admin/liabilities | Sidebar: Liabilities | PASS | Route loaded and actions visible. |
 | 8 | /admin/assets | Sidebar: Assets | PASS | Route loaded and actions visible. |
-| 9 | /admin/equity | Sidebar: Equity | PASS | Route loaded and actions visible. |
+| 9 | /admin/accounting | Owner Equity Ledger (inside Accounting) | PASS | Route loaded and owner equity controls visible in accounting workspace. |
 | 10 | /admin/reports | Sidebar: Reports | PASS | Route loaded and actions visible. |
 | 11 | /admin/attendance | Sidebar: Attendance | PASS | Route loaded and actions visible. |
 | 12 | /admin/leaves | Sidebar: Leaves | PASS | Route loaded and actions visible. |
@@ -63,6 +63,7 @@ Environment: <http://127.0.0.1:8000> (Laravel + Vue SPA)
 
 - The single FAIL row is a scripted timeout for /admin/payroll, not a deterministic compile/runtime crash in this pass.
 - WARN rows for Reset Filters are expected in default state because reset is intentionally disabled before any filter mutation.
+- Owner equity operations are part of `/admin/accounting` (not a standalone `/admin/equity` route).
 - Admin docs manual search was validated with query `payroll` (counts narrowed) and reset returned counts to full set.
 - Print route controls were verified on both roles:
   - /admin/docs/print: Back To Docs, Download PDF, Print Now.

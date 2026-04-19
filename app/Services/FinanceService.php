@@ -24,7 +24,14 @@ class FinanceService
             ->whereIn('status', self::ACCRUAL_INVOICE_STATUSES)
             ->sum('amount');
 
-        $cashCollected = (float) $project->payments()->sum('amount');
+        $cashCollected = (float) $project->payments()
+            ->whereNotNull('invoice_id')
+            ->sum('amount');
+
+        $advanceCollections = (float) $project->payments()
+            ->whereNull('invoice_id')
+            ->sum('amount');
+
         $accountsReceivable = max(0, $accruedRevenue - $cashCollected);
 
         return [
@@ -33,6 +40,7 @@ class FinanceService
             'recognized_revenue' => round($accruedRevenue, 2),
             'accrued_revenue' => round($accruedRevenue, 2),
             'cash_collected' => round($cashCollected, 2),
+            'advance_collections' => round($advanceCollections, 2),
             'accounts_receivable' => round($accountsReceivable, 2),
             'collection_rate_percent' => $accruedRevenue > 0
                 ? round(($cashCollected / $accruedRevenue) * 100, 2)

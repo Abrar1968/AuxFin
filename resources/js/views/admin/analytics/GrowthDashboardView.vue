@@ -6,7 +6,15 @@
                 <h1 class="text-2xl font-black text-slate-900">Growth Velocity Dashboard</h1>
                 <p class="mt-1 text-sm text-slate-600">Monitor directional momentum across revenue, margin, workforce, and efficiency quality signals.</p>
             </div>
-            <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">Refresh</button>
+            <div class="flex flex-wrap items-end gap-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Timeframe
+                    <select v-model="timeframe" class="mt-1 block rounded-xl border border-slate-300 px-3 py-2 text-sm min-w-36">
+                        <option v-for="option in timeframeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </label>
+                <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700" @click="load">Refresh</button>
+            </div>
         </header>
 
         <div v-if="loading" class="grid gap-3">
@@ -62,7 +70,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BarChart from '../../../components/charts/BarChart.vue';
 import GaugeChart from '../../../components/charts/GaugeChart.vue';
 import LineChart from '../../../components/charts/LineChart.vue';
@@ -74,6 +82,14 @@ import { getApiErrorMessage } from '../../../utils/api-error';
 const toast = useToastStore();
 const loading = ref(false);
 const growth = ref({ velocity: {}, series: [] });
+const timeframe = ref('month');
+
+const timeframeOptions = [
+    { value: 'day', label: 'Day Wise' },
+    { value: 'week', label: 'Week Wise' },
+    { value: 'month', label: 'Month Wise' },
+    { value: 'year', label: 'Year Wise' },
+];
 
 const velocity = computed(() => growth.value.velocity ?? {});
 const series = computed(() => growth.value.series ?? []);
@@ -87,7 +103,7 @@ const velocityCards = computed(() => [
     { label: 'AR CMGR', value: Number(velocity.value.ar_cmgr ?? 0).toFixed(2) },
 ]);
 
-const monthLabels = computed(() => series.value.map((row) => String(row.snapshot_month ?? '').slice(0, 7)));
+const monthLabels = computed(() => series.value.map((row) => row.label ?? row.period ?? String(row.snapshot_month ?? '').slice(0, 7)));
 const headcountSeries = computed(() => series.value.map((row) => Number(row.headcount ?? 0)));
 const netProfitSeries = computed(() => series.value.map((row) => Number(row.net_profit ?? 0)));
 
@@ -116,7 +132,7 @@ const recommendations = computed(() => {
 async function load() {
     loading.value = true;
     try {
-        const response = await AnalyticsService.growth();
+        const response = await AnalyticsService.growth({ timeframe: timeframe.value });
         growth.value = response.data ?? { velocity: {}, series: [] };
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load growth analytics.'));
@@ -128,6 +144,10 @@ async function load() {
 function number(v) {
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(v ?? 0));
 }
+
+watch(timeframe, () => {
+    load();
+});
 
 load();
 </script>

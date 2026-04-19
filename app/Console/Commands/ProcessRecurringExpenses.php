@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class ProcessRecurringExpenses extends Command
 {
-    protected $signature = 'finerp:expenses:process-recurring';
+    protected $signature = 'auxfin:expenses:process-recurring';
 
     protected $description = 'Create monthly/quarterly/yearly recurring expense instances';
 

@@ -200,6 +200,43 @@
             <form class="grid gap-3" @submit.prevent="submitPayExpense">
                 <p class="text-sm text-slate-600">Settle payable amounts for accrued expense entries.</p>
 
+                <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                    <div class="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        <span>Payment History</span>
+                        <span>Total Paid: {{ number(expensePaymentMeta.total_paid) }}</span>
+                    </div>
+
+                    <p v-if="expensePaymentRows.length === 0" class="text-xs text-slate-500">No payments recorded for this expense yet.</p>
+
+                    <div v-else class="space-y-2">
+                        <div
+                            v-for="payment in expensePaymentRows"
+                            :key="payment.id"
+                            class="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-700">{{ payment.payment_date }} • {{ payment.payment_method }}</p>
+                                    <p class="text-xs text-slate-500">
+                                        {{ payment.reference_number || 'No reference' }}
+                                        <span v-if="payment.notes">• {{ payment.notes }}</span>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs font-semibold text-slate-800">{{ number(payment.amount) }}</p>
+                                    <button
+                                        type="button"
+                                        class="text-xs font-semibold text-rose-700"
+                                        @click="removeExpensePayment(payment.id)"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <input v-model="payForm.amount" required type="number" min="0.01" step="0.01" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Payment amount">
                 <input v-model="payForm.payment_date" required type="date" class="rounded-lg border border-slate-300 px-3 py-2">
                 <input v-model="payForm.payment_method" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Payment method (bank_transfer, cash, etc.)">
@@ -241,6 +278,10 @@ const showEditModal = ref(false);
 const showPayModal = ref(false);
 const editExpenseId = ref(null);
 const payExpenseId = ref(null);
+const expensePaymentRows = ref([]);
+const expensePaymentMeta = ref({
+    total_paid: 0,
+});
 const variableTotal = computed(() => Number(summary.value.monthly_total ?? 0) - Number(summary.value.recurring_total ?? 0));
 
 const form = reactive({
@@ -388,13 +429,15 @@ async function submitEditExpense() {
     }
 }
 
-function openPayModal(row) {
+async function openPayModal(row) {
     payExpenseId.value = row.id;
     payForm.amount = String(row.outstanding_amount ?? row.amount ?? '0');
     payForm.payment_date = new Date().toISOString().slice(0, 10);
     payForm.payment_method = 'bank_transfer';
     payForm.reference_number = '';
     payForm.notes = '';
+
+    await loadExpensePayments(row.id);
     showPayModal.value = true;
 }
 
@@ -412,11 +455,44 @@ async function submitPayExpense() {
             notes: payForm.notes || null,
         });
 
-        showPayModal.value = false;
         toast.success('Expense payment recorded successfully.');
+        await loadExpensePayments(payExpenseId.value);
         await load();
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to record expense payment.'));
+    }
+}
+
+async function loadExpensePayments(expenseId) {
+    try {
+        const response = await FinanceService.expensePayments(expenseId);
+        expensePaymentRows.value = response.data.rows ?? [];
+        expensePaymentMeta.value = {
+            total_paid: Number(response.data.total_paid ?? 0),
+        };
+    } catch (error) {
+        expensePaymentRows.value = [];
+        expensePaymentMeta.value = { total_paid: 0 };
+        toast.error(getApiErrorMessage(error, 'Unable to load expense payments.'));
+    }
+}
+
+async function removeExpensePayment(paymentId) {
+    if (!payExpenseId.value) {
+        return;
+    }
+
+    if (!confirm('Delete this expense payment?')) {
+        return;
+    }
+
+    try {
+        await FinanceService.deleteExpensePayment(payExpenseId.value, paymentId);
+        toast.success('Expense payment deleted successfully.');
+        await loadExpensePayments(payExpenseId.value);
+        await load();
+    } catch (error) {
+        toast.error(getApiErrorMessage(error, 'Unable to delete expense payment.'));
     }
 }
 

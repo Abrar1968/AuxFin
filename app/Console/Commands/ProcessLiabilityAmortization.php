@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class ProcessLiabilityAmortization extends Command
 {
-    protected $signature = 'finerp:liabilities:amortize';
+    protected $signature = 'auxfin:liabilities:amortize';
 
     protected $description = 'Process due liability amortization installments';
 

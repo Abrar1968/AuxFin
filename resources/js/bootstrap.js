@@ -8,7 +8,7 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 window.Pusher = Pusher;
 
-const token = localStorage.getItem('finerp_token');
+const token = localStorage.getItem('auxfin_token');
 
 function createEchoClient({ key, cluster }) {
 	if (!key || !cluster) {

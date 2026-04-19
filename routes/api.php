@@ -66,6 +66,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::post('expenses/{id}/payments', [AdminExpenseController::class, 'recordPayment']);
         Route::delete('expenses/{expenseId}/payments/{paymentId}', [AdminExpenseController::class, 'deletePayment']);
 
+        Route::get('owner-equity/owners', [AdminOwnerEquityController::class, 'owners']);
+        Route::post('owner-equity/owners', [AdminOwnerEquityController::class, 'storeOwner']);
+        Route::put('owner-equity/owners/{id}', [AdminOwnerEquityController::class, 'updateOwner']);
+        Route::delete('owner-equity/owners/{id}', [AdminOwnerEquityController::class, 'destroyOwner']);
         Route::apiResource('owner-equity', AdminOwnerEquityController::class);
 
         Route::apiResource('liabilities', AdminLiabilityController::class);

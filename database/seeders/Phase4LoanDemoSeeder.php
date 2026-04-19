@@ -13,8 +13,8 @@ class Phase4LoanDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = User::query()->where('email', 'admin@finerp.local')->first()
-            ?? User::query()->where('email', 'owner@finerp.local')->first();
+        $admin = User::query()->where('email', 'admin@auxfin.local')->first()
+            ?? User::query()->where('email', 'owner@auxfin.local')->first();
 
         $empSadia = Employee::query()->where('employee_code', 'EMP-0101')->first();
         $empFahim = Employee::query()->where('employee_code', 'EMP-0102')->first();

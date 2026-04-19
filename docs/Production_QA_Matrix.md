@@ -1,4 +1,4 @@
-# FinERP Production QA Matrix
+# AuxFin Production QA Matrix
 
 This matrix defines section-wise test input and expected frontend-facing output.
 
@@ -84,6 +84,25 @@ This matrix defines section-wise test input and expected frontend-facing output.
 | EMS-002 | Employee Message Detail | Message id | `GET /api/employee/messages/{id}` | Message retrievable |
 | EMS-003 | Mark All Read | Inbox rows present | `POST /api/employee/messages/mark-all-read` | Success response |
 | EMS-004 | Employee Message Edge | Body too short | `POST /api/employee/messages` | `422` validation error |
+
+## Owner Equity Delta Cases (April 2026)
+
+| Case ID | Section | Seed/Input | Endpoint | Expected Output |
+|---|---|---|---|---|
+| OWE-001 | Owner Registry | Create 3 owners: 50/30/20 with initial investment values | `POST /api/admin/owner-equity/owners` | `201` created for all three owners |
+| OWE-002 | Ownership Guard | Try adding 4th owner that makes active total > 100% | `POST /api/admin/owner-equity/owners` | `422` validation on `ownership_percentage` |
+| OWE-003 | Entry Attribution Guard | Active owners exist but entry has no owner id | `POST /api/admin/owner-equity` | `422` validation on `business_owner_id` |
+| OWE-004 | Owner-Linked Ledger | Insert owner-specific contribution/drawing rows | `GET /api/admin/owner-equity?business_owner_id={id}` | Only matching owner rows returned |
+| OWE-005 | Owner Summary Math | Contributions + drawings posted for multiple owners | `GET /api/admin/owner-equity/owners` | Net investment and totals are mathematically consistent |
+| OWE-006 | Owner Delete Guard | Attempt delete owner with linked entries | `DELETE /api/admin/owner-equity/owners/{id}` | `422` validation block |
+
+## Timeframe Consistency Cases (Day/Week/Month/Year)
+
+| Case ID | Section | Input | Endpoint | Expected Output |
+|---|---|---|---|---|
+| TFM-001 | Finance Overview | `timeframe=day|week|month|year` + `anchor_date` | `GET /api/admin/finance/overview` | Response contains requested timeframe context |
+| TFM-002 | Accounting Statements | Same timeframe set | `GET /api/admin/reports/*` + accounting UI consumers | Internal formulas remain consistent across all timeframes |
+| TFM-003 | Analytics Views | Same timeframe set | `GET /api/admin/analytics/*` | Timeframe-aware payloads returned without mismatch |
 
 ## Pass Criteria
 

@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 class CaptureMonthlySnapshot extends Command
 {
-    protected $signature = 'finerp:snapshot {month? : Optional month in Y-m-d format}';
+    protected $signature = 'auxfin:snapshot {month? : Optional month in Y-m-d format}';
 
     protected $description = 'Capture monthly company financial snapshot';
 

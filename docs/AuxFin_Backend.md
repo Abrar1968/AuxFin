@@ -1,4 +1,4 @@
-# FinERP — Backend Development Guide
+# AuxFin — Backend Development Guide
 
 **Laravel 11 (PHP 8.3+) · MySQL 8.0 · Pusher · Laravel Sanctum**
 
@@ -1165,4 +1165,50 @@ Example:
 
 ---
 
-*— FinERP Backend Guide v2.0 — Laravel 11 · MySQL 8.0 · Pusher · Laravel Sanctum —*
+## 17. April 2026 Delta — Timeframe + Multi-Owner Equity
+
+### 17.1 New Timeframe Contract (Day/Week/Month/Year)
+
+- `timeframe` + `anchor_date` are supported across admin analytics/reporting/accounting APIs.
+- Timeframe-aware payloads are now available in:
+  - Finance overview
+  - Analytics overview, CMGR, growth, forecast, anomalies
+  - Reports (profit-loss, tax summary, cash flow, trial balance, balance sheet, AR aging, ledgers)
+
+### 17.2 Multi-Owner Equity Model
+
+- Added `business_owners` table for ownership registry:
+  - `name`
+  - `ownership_percentage`
+  - `initial_investment`
+  - `is_active`
+- Added `business_owner_id` foreign key on `owner_equity_entries`.
+- Equity entries can now be attributed to a specific owner while preserving legacy compatibility.
+
+### 17.3 Owner Equity API Additions
+
+- `GET /api/admin/owner-equity/owners`
+- `POST /api/admin/owner-equity/owners`
+- `PUT /api/admin/owner-equity/owners/{id}`
+- `DELETE /api/admin/owner-equity/owners/{id}`
+- Existing `owner-equity` CRUD remains active and now supports `business_owner_id`.
+
+### 17.4 Validation Rules Added
+
+- Active ownership allocation cannot exceed `100%`.
+- If active owners exist, owner equity entries must include `business_owner_id`.
+- Owners with linked equity rows cannot be deleted (must deactivate/update instead).
+
+### 17.5 Extended Automated Coverage
+
+- Feature tests now cover:
+  - 3-owner equity split scenario
+  - Ownership overflow guard (>100%)
+  - Required owner linkage for equity entries
+  - Per-owner net investment computations
+
+Validation status at update time: passing targeted owner-equity suite and passing frontend production build.
+
+---
+
+*— AuxFin Backend Guide v2.0 — Laravel 11 · MySQL 8.0 · Pusher · Laravel Sanctum —*

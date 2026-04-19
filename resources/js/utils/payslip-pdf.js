@@ -27,7 +27,7 @@ export function downloadPayslipPdf(payload, filename = 'payslip.pdf') {
 
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('FinERP Payslip', 40, 50);
+    doc.text('AuxFin Payslip', 40, 50);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');

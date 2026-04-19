@@ -7,9 +7,18 @@
                 <p class="mt-1 text-sm text-slate-600">Maintain client accounts, contract pipeline, and receivable health in one workspace.</p>
             </div>
 
-            <button class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="loadAll">
-                Refresh Portfolio
-            </button>
+            <div class="flex flex-wrap items-end gap-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Timeframe
+                    <select v-model="timeframe" class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm min-w-36">
+                        <option v-for="option in timeframeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </label>
+
+                <button class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="loadAll">
+                    Refresh Portfolio
+                </button>
+            </div>
         </header>
 
         <article class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
@@ -240,7 +249,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import AppModal from '../../../components/ui/AppModal.vue';
 import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
@@ -255,8 +264,16 @@ const toast = useToastStore();
 const kpis = ref({});
 const invoiceFunnel = ref([]);
 const clients = ref([]);
+const hasLoadedClientOptions = ref(false);
 const clientRows = ref([]);
 const projectRows = ref([]);
+const timeframe = ref('month');
+const timeframeOptions = [
+    { value: 'day', label: 'Day Wise' },
+    { value: 'week', label: 'Week Wise' },
+    { value: 'month', label: 'Month Wise' },
+    { value: 'year', label: 'Year Wise' },
+];
 const clientFilters = reactive({
     page: 1,
     per_page: 20,
@@ -321,7 +338,7 @@ async function loadAll() {
 
 async function loadOverview() {
     try {
-        const response = await FinanceService.overview();
+        const response = await FinanceService.overview({ timeframe: timeframe.value });
         kpis.value = response.data.kpis ?? {};
         invoiceFunnel.value = response.data.invoice_funnel ?? [];
     } catch (error) {
@@ -329,10 +346,19 @@ async function loadOverview() {
     }
 }
 
-async function loadClientOptions() {
+watch(timeframe, () => {
+    loadOverview();
+});
+
+async function loadClientOptions(force = false) {
+    if (hasLoadedClientOptions.value && !force) {
+        return;
+    }
+
     try {
-        const response = await FinanceService.clients({ per_page: 500 });
-        clients.value = response.data.data ?? [];
+        const response = await FinanceService.clients({ options: true, limit: 500 });
+        clients.value = response.data ?? [];
+        hasLoadedClientOptions.value = true;
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load clients.'));
     }
@@ -383,7 +409,7 @@ async function createClient() {
         clientForm.email = '';
         clientForm.phone = '';
         toast.success('Client created successfully.');
-        await Promise.all([loadClientOptions(), loadClients(true)]);
+        await Promise.all([loadClientOptions(true), loadClients(true)]);
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to create client.'));
     }
@@ -411,7 +437,7 @@ async function submitClientEdit() {
 
         showClientEditModal.value = false;
         toast.success('Client updated successfully.');
-        await Promise.all([loadClientOptions(), loadClients()]);
+        await Promise.all([loadClientOptions(true), loadClients()]);
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to update client.'));
     }
@@ -432,7 +458,7 @@ async function confirmDeleteClient() {
         showClientDeleteModal.value = false;
         deleteClientId.value = null;
         toast.success('Client deleted successfully.');
-        await Promise.all([loadClientOptions(), loadClients(), loadProjects(), loadOverview()]);
+        await Promise.all([loadClientOptions(true), loadClients(), loadProjects(), loadOverview()]);
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to delete client.'));
     }
