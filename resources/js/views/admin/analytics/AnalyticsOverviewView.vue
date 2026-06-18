@@ -126,12 +126,12 @@ import LineChart from '../../../components/charts/LineChart.vue';
 import ProgressBar from '../../../components/charts/ProgressBar.vue';
 import SparkLine from '../../../components/charts/SparkLine.vue';
 import SkeletonLoader from '../../../components/layout/SkeletonLoader.vue';
-import { useAnalyticsStore } from '../../../stores/analytics.store';
-import { useToastStore } from '../../../stores/toast.store';
+import { useAnalytics } from '../../../composables/useAnalytics';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const analytics = useAnalyticsStore();
-const toast = useToastStore();
+const analytics = useAnalytics();
+const toast = useToast();
 const loading = ref(false);
 const availableCash = ref(0);
 const timeframe = ref('month');

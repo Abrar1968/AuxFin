@@ -262,12 +262,14 @@ import AppModal from '../../../components/ui/AppModal.vue';
 import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { EmployeeService } from '../../../services/employee.service';
 import { MessageService } from '../../../services/message.service';
-import { useAuthStore } from '../../../stores/auth.store';
-import { useToastStore } from '../../../stores/toast.store';
+import { useAuth } from '../../../composables/useAuth';
+import { useRealTime } from '../../../composables/useRealTime';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const auth = useAuthStore();
-const toast = useToastStore();
+const auth = useAuth();
+const toast = useToast();
+const { subscribeAdminEvents, unsubscribeCustomAdmin } = useRealTime();
 
 const status = ref('');
 const type = ref('');
@@ -306,8 +308,6 @@ const compose = reactive({
     priority: 'normal',
 });
 
-let adminChannel = null;
-
 const canTakeAction = computed(() => ['late_appeal', 'deduction_dispute'].includes(selected.value?.type ?? ''));
 const openCount = computed(() => rows.value.filter((msg) => String(msg.status).toLowerCase() === 'open').length);
 const underReviewCount = computed(() => rows.value.filter((msg) => String(msg.status).toLowerCase() === 'under_review').length);
@@ -319,12 +319,7 @@ onMounted(async () => {
     subscribeRealTime();
 });
 
-onUnmounted(() => {
-    if (adminChannel) {
-        adminChannel.stopListening('.message.new');
-        adminChannel.stopListening('message.new');
-    }
-});
+onUnmounted(unsubscribeCustomAdmin);
 
 async function loadEmployees() {
     try {
@@ -495,26 +490,16 @@ async function markAllRead() {
 }
 
 function subscribeRealTime() {
-    const echo = window.EchoMain || window.EchoChat || window.EchoNotifications || window.Echo;
-    if (!echo || !auth.token) {
+    if (!auth.token) {
         return;
     }
 
-    if (typeof window.configureEchoAuth === 'function') {
-        window.configureEchoAuth(auth.token);
-    }
-
-    adminChannel = echo.private('admin-broadcast');
-
-    adminChannel.listen('.message.new', async () => {
-        toast.info('New employee message received.');
-        await load();
-    });
-
-    adminChannel.listen('message.new', async () => {
-        toast.info('New employee message received.');
-        await load();
-    });
+    subscribeAdminEvents({
+        'message.new': async () => {
+            toast.info('New employee message received.');
+            await load();
+        },
+    }, auth.token);
 }
 
 function formatDateTime(value) {

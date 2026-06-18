@@ -115,12 +115,12 @@ import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { PayrollService } from '../../../services/payroll.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const month = ref(new Date().toISOString().slice(0, 10));
 const rows = ref([]);
 const router = useRouter();
-const toast = useToastStore();
+const toast = useToast();
 
 const totalGross = computed(() => rows.value.reduce((sum, row) => sum + Number(row.gross_earnings ?? 0), 0));
 const totalDeductions = computed(() => rows.value.reduce((sum, row) => sum + Number(row.total_deductions ?? 0), 0));
@@ -146,7 +146,7 @@ const monthLabel = computed(() => {
 async function load() {
     try {
         const response = await PayrollService.getMonth(month.value);
-        rows.value = response.data;
+        rows.value = response.data.data ?? response.data;
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load payroll month.'));
     }
@@ -155,7 +155,7 @@ async function load() {
 async function bulk() {
     try {
         await PayrollService.bulkProcess(month.value);
-        toast.success('Bulk payroll processing completed.');
+        toast.success(response.data?.message ?? 'Bulk payroll processing queued.');
         await load();
     } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to process payroll in bulk.'));

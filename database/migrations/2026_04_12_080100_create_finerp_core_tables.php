@@ -98,7 +98,7 @@ return new class extends Migration
             $table->foreignId('loan_id')->constrained()->cascadeOnDelete();
             $table->date('month');
             $table->decimal('amount_paid', 12, 2);
-            $table->timestamp('created_at')->nullable();
+            $table->timestamps();
             $table->unique(['loan_id', 'month']);
         });
 
@@ -218,7 +218,7 @@ return new class extends Migration
             $table->decimal('cash_runway_months', 8, 2)->default(0);
             $table->integer('headcount')->default(0);
             $table->decimal('total_ar', 16, 2)->default(0);
-            $table->timestamp('created_at')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('employee_messages', function (Blueprint $table) {
@@ -246,6 +246,7 @@ return new class extends Migration
             $table->foreignId('message_id')->constrained('employee_messages')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->timestamp('read_at');
+            $table->timestamps();
             $table->unique(['message_id', 'user_id']);
         });
 
@@ -254,7 +255,7 @@ return new class extends Migration
             $table->string('name', 200);
             $table->date('date')->unique();
             $table->boolean('is_optional')->default(false);
-            $table->timestamp('created_at')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('audit_logs', function (Blueprint $table) {
@@ -267,7 +268,7 @@ return new class extends Migration
             $table->json('new_values')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
-            $table->timestamp('created_at')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('settings', function (Blueprint $table) {

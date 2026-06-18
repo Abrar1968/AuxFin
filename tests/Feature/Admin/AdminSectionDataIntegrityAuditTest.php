@@ -129,11 +129,11 @@ test('every admin section endpoint returns proper seeded data payloads', functio
 
     $this->getJson('/api/admin/payroll/2026-04-01')
         ->assertOk()
-        ->assertJsonPath('0.id', $seed['salaryMonth']->id);
+        ->assertJsonPath('data.0.id', $seed['salaryMonth']->id);
 
     $this->getJson("/api/admin/payroll/{$seed['salaryMonth']->id}/payslip")
         ->assertOk()
-        ->assertJsonPath('employee.employee_code', $seed['employee']->employee_code);
+        ->assertJsonPath('data.employee.employee_code', $seed['employee']->employee_code);
 
     $this->getJson('/api/admin/analytics/overview')
         ->assertOk()

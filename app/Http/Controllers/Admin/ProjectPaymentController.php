@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ProjectPaymentRequest;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\ProjectPayment;
@@ -33,18 +34,10 @@ class ProjectPaymentController extends Controller
         return response()->json($rows);
     }
 
-    public function store(Request $request, int $projectId): JsonResponse
+    public function store(ProjectPaymentRequest $request, int $projectId): JsonResponse
     {
         $project = Project::query()->findOrFail($projectId);
-
-        $payload = $request->validate([
-            'invoice_id' => ['nullable', 'integer', 'exists:invoices,id'],
-            'payment_date' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'payment_method' => ['nullable', 'string', 'max:40'],
-            'reference_number' => ['nullable', 'string', 'max:80'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $invoice = null;
         if (array_key_exists('invoice_id', $payload) && $payload['invoice_id']) {

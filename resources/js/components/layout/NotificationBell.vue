@@ -56,9 +56,9 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { useNotificationStore } from '../../stores/notification.store';
+import { useNotifications } from '../../composables/useNotifications';
 
-const notifications = useNotificationStore();
+const notifications = useNotifications();
 const open = ref(false);
 const containerRef = ref(null);
 

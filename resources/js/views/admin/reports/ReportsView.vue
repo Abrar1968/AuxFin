@@ -120,11 +120,11 @@ import BarChart from '../../../components/charts/BarChart.vue';
 import LineChart from '../../../components/charts/LineChart.vue';
 import SkeletonLoader from '../../../components/layout/SkeletonLoader.vue';
 import { ReportService } from '../../../services/report.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { exportArAgingPdf, exportProfitLossPdf, exportTaxSummaryPdf } from '../../../utils/report-pdf';
 
-const toast = useToastStore();
+const toast = useToast();
 
 const loading = ref(false);
 const profitLoss = ref({ rows: [], totals: {} });

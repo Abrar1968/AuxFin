@@ -229,7 +229,7 @@ import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner.vue';
 import StatusBadge from '../../../components/ui/StatusBadge.vue';
 import { EmployeeService } from '../../../services/employee.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import {
     formatCurrency,
@@ -241,7 +241,7 @@ import {
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToastStore();
+const toast = useToast();
 
 const employee = ref(null);
 const loading = ref(false);

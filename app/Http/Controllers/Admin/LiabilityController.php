@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\LiabilityRequest;
 use App\Models\Liability;
 use App\Services\FinanceService;
 use Carbon\Carbon;
@@ -65,19 +66,9 @@ class LiabilityController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(LiabilityRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:200'],
-            'principal_amount' => ['required', 'numeric', 'min:0.01'],
-            'outstanding' => ['nullable', 'numeric', 'min:0'],
-            'interest_rate' => ['nullable', 'numeric', 'min:0'],
-            'monthly_payment' => ['required', 'numeric', 'min:0.01'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'next_due_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:active,completed,defaulted'],
-        ]);
+        $payload = $request->validated();
 
         $liability = Liability::query()->create([
             'name' => $payload['name'],
@@ -97,21 +88,10 @@ class LiabilityController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(LiabilityRequest $request, int $id): JsonResponse
     {
         $liability = Liability::query()->findOrFail($id);
-
-        $payload = $request->validate([
-            'name' => ['sometimes', 'string', 'max:200'],
-            'principal_amount' => ['sometimes', 'numeric', 'min:0.01'],
-            'outstanding' => ['sometimes', 'numeric', 'min:0'],
-            'interest_rate' => ['sometimes', 'numeric', 'min:0'],
-            'monthly_payment' => ['sometimes', 'numeric', 'min:0.01'],
-            'start_date' => ['sometimes', 'date'],
-            'end_date' => ['nullable', 'date'],
-            'next_due_date' => ['nullable', 'date'],
-            'status' => ['sometimes', 'in:active,completed,defaulted'],
-        ]);
+        $payload = $request->validated();
 
         $liability->update($payload);
 
@@ -121,11 +101,9 @@ class LiabilityController extends Controller
         ]);
     }
 
-    public function processPayment(Request $request, int $id): JsonResponse
+    public function processPayment(LiabilityRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'amount' => ['nullable', 'numeric', 'min:0.01'],
-        ]);
+        $payload = $request->validated();
 
         $liability = Liability::query()->findOrFail($id);
         $updated = $this->financeService->processLiabilityPayment(

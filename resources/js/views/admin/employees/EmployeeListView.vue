@@ -196,10 +196,10 @@ import AppModal from '../../../components/ui/AppModal.vue';
 import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import StatusBadge from '../../../components/ui/StatusBadge.vue';
 import { EmployeeService } from '../../../services/employee.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const toast = useToastStore();
+const toast = useToast();
 const search = ref('');
 const rows = ref([]);
 const departments = ref([]);

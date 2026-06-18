@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Employee;
 
 use App\Events\MessageNew;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Employee\MessageRequest;
 use App\Models\EmployeeMessage;
 use App\Models\MessageRead;
 use Illuminate\Http\JsonResponse;
@@ -40,19 +41,11 @@ class MessageController extends Controller
         return response()->json($payload);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(MessageRequest $request): JsonResponse
     {
         $employee = $request->user()->employee;
         abort_if(! $employee, 404, 'Employee profile not found.');
-
-        $payload = $request->validate([
-            'type' => ['required', 'in:late_appeal,deduction_dispute,leave_clarification,salary_query,loan_query,general_hr'],
-            'subject' => ['required', 'string', 'max:300'],
-            'body' => ['required', 'string', 'min:5'],
-            'reference_date' => ['nullable', 'date'],
-            'reference_month' => ['nullable', 'date'],
-            'priority' => ['nullable', 'in:normal,high'],
-        ]);
+        $payload = $request->validated();
 
         $message = EmployeeMessage::query()->create([
             'employee_id' => $employee->id,

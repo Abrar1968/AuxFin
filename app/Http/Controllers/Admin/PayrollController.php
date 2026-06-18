@@ -2,194 +2,110 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Events\SalaryPaid;
-use App\Events\SalaryProcessed;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PayrollRequest;
+use App\Jobs\BulkProcessPayrollJob;
+use App\Jobs\ProcessPayrollJob;
 use App\Models\Employee;
 use App\Models\SalaryMonth;
-use App\Services\LoanService;
-use App\Services\PayrollService;
-use Carbon\Carbon;
+use App\Services\PaginationResponse;
+use App\Services\PayrollProcessingService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class PayrollController extends Controller
 {
     public function __construct(
-        private readonly PayrollService $payrollService,
-        private readonly LoanService $loanService,
+        private readonly PayrollProcessingService $payrollProcessingService,
     ) {
     }
 
-    public function index(string $month): JsonResponse
+    public function index(PayrollRequest $request, string $month): JsonResponse
     {
-        $monthDate = Carbon::parse($month)->startOfMonth()->toDateString();
+        $rows = $this->payrollProcessingService->listMonth(
+            $month,
+            $request->integer('per_page', 20),
+        );
 
-        $rows = SalaryMonth::query()
-            ->with(['employee.user', 'employee.department'])
-            ->whereDate('month', $monthDate)
-            ->orderBy('id')
-            ->get();
-
-        return response()->json($rows);
+        return response()->json([
+            'data' => $rows->items(),
+            'meta' => PaginationResponse::meta($rows),
+            'message' => 'Payroll month fetched successfully.',
+        ]);
     }
 
     public function showPayslip(int $id): JsonResponse
     {
-        $salaryMonth = SalaryMonth::query()
-            ->with(['employee.user', 'employee.department'])
-            ->findOrFail($id);
-
-        return response()->json($this->payrollService->buildPayslipPayload($salaryMonth));
+        return response()->json([
+            'data' => $this->payrollProcessingService->buildPayslip($id),
+            'message' => 'Payslip fetched successfully.',
+        ]);
     }
 
-    public function process(Request $request): JsonResponse
+    public function process(PayrollRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id'],
-            'month' => ['required', 'date'],
-            'performance_bonus' => ['nullable', 'numeric', 'min:0'],
-            'festival_bonus' => ['nullable', 'numeric', 'min:0'],
-            'overtime_pay' => ['nullable', 'numeric', 'min:0'],
-            'other_bonus' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $payload = $request->validated();
+        $this->payrollProcessingService->ensureProcessable((int) $payload['employee_id'], $payload['month']);
 
         $employee = Employee::query()->findOrFail($payload['employee_id']);
-        $salaryMonth = $this->payrollService->processMonth($employee, $payload['month'], $payload);
-        $this->loanService->applyMonthlyDeduction($employee, $payload['month']);
-
-        $salaryMonth->update([
-            'status' => 'processed',
-            'processed_at' => now(),
-            'processed_by' => $request->user()->id,
-        ]);
-
-        event(new SalaryProcessed($employee->id, [
-            'salary_month_id' => $salaryMonth->id,
-            'month' => $salaryMonth->month,
-            'net_payable' => (float) $salaryMonth->net_payable,
-        ]));
+        ProcessPayrollJob::dispatch(
+            $employee->id,
+            $payload['month'],
+            (int) $request->user()->id,
+            $payload,
+        );
 
         return response()->json([
-            'message' => 'Payroll processed successfully.',
-            'salary_month' => $salaryMonth->fresh(),
-        ]);
+            'data' => [
+                'employee_id' => $employee->id,
+                'month' => $payload['month'],
+                'status' => 'queued',
+            ],
+            'message' => 'Payroll processing queued successfully.',
+        ], 202);
     }
 
-    public function bulkProcess(Request $request): JsonResponse
+    public function bulkProcess(PayrollRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'month' => ['required', 'date'],
-        ]);
-
-        $processed = [];
-
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Employee> $employees */
-        $employees = Employee::query()
-            ->whereHas('user', fn ($query) => $query->where('is_active', true))
-            ->get();
-
-        foreach ($employees as $employee) {
-            $row = $this->payrollService->processMonth($employee, $payload['month']);
-            $this->loanService->applyMonthlyDeduction($employee, $payload['month']);
-
-            $row->update([
-                'status' => 'processed',
-                'processed_at' => now(),
-                'processed_by' => $request->user()->id,
-            ]);
-
-            $processed[] = $row->id;
-        }
+        $payload = $request->validated();
+        BulkProcessPayrollJob::dispatch($payload['month'], (int) $request->user()->id);
 
         return response()->json([
-            'message' => 'Bulk payroll processing completed.',
-            'processed_count' => count($processed),
-            'salary_month_ids' => $processed,
-        ]);
+            'data' => [
+                'month' => $payload['month'],
+                'status' => 'queued',
+            ],
+            'message' => 'Bulk payroll processing queued successfully.',
+        ], 202);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(PayrollRequest $request, int $id): JsonResponse
     {
         $salaryMonth = SalaryMonth::query()->findOrFail($id);
-
-        if ($salaryMonth->status === 'paid') {
-            return response()->json(['message' => 'Paid salary records cannot be modified.'], 422);
-        }
-
-        $payload = $request->validate([
-            'performance_bonus' => ['sometimes', 'numeric', 'min:0'],
-            'festival_bonus' => ['sometimes', 'numeric', 'min:0'],
-            'overtime_pay' => ['sometimes', 'numeric', 'min:0'],
-            'other_bonus' => ['sometimes', 'numeric', 'min:0'],
-            'tds_deduction' => ['sometimes', 'numeric', 'min:0'],
-            'pf_deduction' => ['sometimes', 'numeric', 'min:0'],
-            'professional_tax' => ['sometimes', 'numeric', 'min:0'],
-            'unpaid_leave_deduction' => ['sometimes', 'numeric', 'min:0'],
-            'late_penalty_deduction' => ['sometimes', 'numeric', 'min:0'],
-            'loan_emi_deduction' => ['sometimes', 'numeric', 'min:0'],
-        ]);
-
-        $salaryMonth->fill($payload);
-
-        $gross = (float) $salaryMonth->basic_salary
-            + (float) $salaryMonth->house_rent
-            + (float) $salaryMonth->conveyance
-            + (float) $salaryMonth->medical_allowance
-            + (float) $salaryMonth->performance_bonus
-            + (float) $salaryMonth->festival_bonus
-            + (float) $salaryMonth->overtime_pay
-            + (float) $salaryMonth->other_bonus;
-
-        $deductions = (float) $salaryMonth->tds_deduction
-            + (float) $salaryMonth->pf_deduction
-            + (float) $salaryMonth->professional_tax
-            + (float) $salaryMonth->unpaid_leave_deduction
-            + (float) $salaryMonth->late_penalty_deduction
-            + (float) $salaryMonth->loan_emi_deduction;
-
-        $salaryMonth->update([
-            'gross_earnings' => round($gross, 2),
-            'total_deductions' => round($deductions, 2),
-            'net_payable' => round($gross - $deductions, 2),
-        ]);
+        $updated = $this->payrollProcessingService->update($salaryMonth, $request->validated());
 
         return response()->json([
+            'data' => $updated,
             'message' => 'Payroll record updated successfully.',
-            'salary_month' => $salaryMonth->fresh(),
+            'salary_month' => $updated,
         ]);
     }
 
     public function markPaid(int $id): JsonResponse
     {
         $salaryMonth = SalaryMonth::query()->findOrFail($id);
-
-        $salaryMonth->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-        ]);
-
-        event(new SalaryPaid($salaryMonth->employee_id, [
-            'salary_month_id' => $salaryMonth->id,
-            'month' => $salaryMonth->month,
-            'net_payable' => (float) $salaryMonth->net_payable,
-        ]));
+        $updated = $this->payrollProcessingService->markPaid($salaryMonth);
 
         return response()->json([
+            'data' => $updated,
             'message' => 'Salary marked as paid.',
-            'salary_month' => $salaryMonth,
+            'salary_month' => $updated,
         ]);
     }
 
     public function destroy(int $id): JsonResponse
     {
         $salaryMonth = SalaryMonth::query()->findOrFail($id);
-
-        if ($salaryMonth->status === 'paid') {
-            return response()->json(['message' => 'Paid salary records cannot be deleted.'], 422);
-        }
-
-        $salaryMonth->delete();
+        $this->payrollProcessingService->delete($salaryMonth);
 
         return response()->json([
             'message' => 'Payroll record deleted successfully.',

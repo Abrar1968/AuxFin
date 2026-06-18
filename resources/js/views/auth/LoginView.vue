@@ -68,10 +68,10 @@ import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppButton from '../../components/ui/AppButton.vue';
 import AppInput from '../../components/ui/AppInput.vue';
-import { useAuthStore } from '../../stores/auth.store';
+import { useAuth } from '../../composables/useAuth';
 
 const router = useRouter();
-const auth = useAuthStore();
+const auth = useAuth();
 const error = ref('');
 const showPasskey = ref(false);
 

@@ -234,7 +234,7 @@ import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { EmployeeService } from '../../../services/employee.service';
 import { LeaveService } from '../../../services/leave.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const status = ref('pending');
 const employees = ref([]);
@@ -254,7 +254,7 @@ const showDecisionModal = ref(false);
 const showDeleteModal = ref(false);
 const actionLeaveId = ref(null);
 const deleteLeaveId = ref(null);
-const toast = useToastStore();
+const toast = useToast();
 const createForm = reactive({
     employee_id: '',
     leave_type: 'casual',

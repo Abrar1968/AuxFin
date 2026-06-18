@@ -72,14 +72,14 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.store';
+import { useAuth } from '../../composables/useAuth';
 import NotificationBell from './NotificationBell.vue';
 
 defineEmits(['toggle-sidebar']);
 
 const route = useRoute();
 const router = useRouter();
-const auth = useAuthStore();
+const auth = useAuth();
 const mobileMenuOpen = ref(false);
 const logoUrl = '/images/logo.jpg';
 

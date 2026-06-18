@@ -263,7 +263,7 @@ import GrowthVelocityCard from '../../components/domain/analytics/GrowthVelocity
 import SkeletonLoader from '../../components/layout/SkeletonLoader.vue';
 import KpiCard from '../../components/ui/KpiCard.vue';
 import { AnalyticsService } from '../../services/analytics.service';
-import { useToastStore } from '../../stores/toast.store';
+import { useToast } from '../../composables/useToast';
 import { getApiErrorMessage } from '../../utils/api-error';
 
 const WINDOW_OPTIONS = [
@@ -305,7 +305,7 @@ const hasCustomCashInput = ref(false);
 const autoRefreshEnabled = ref(true);
 const lastUpdatedAt = ref(null);
 
-const toast = useToastStore();
+const toast = useToast();
 let refreshIntervalId = null;
 
 const hasData = computed(() => series.value.length > 0);

@@ -23,6 +23,7 @@ use Laravel\Sanctum\Sanctum;
 function qaLog(string $line): void
 {
     echo $line.PHP_EOL;
+    flush();
 }
 
 function qaAssert(bool $condition, string $caseId, string $message, ?string $raw = null): void
@@ -86,7 +87,9 @@ function qaFind(array $rows, callable $predicate): ?array
     return null;
 }
 
-qaLog('=== FinERP Production Matrix Runner (Tinker) ===');
+qaLog('=== AuxFin Production Matrix Runner (Tinker) ===');
+
+config(['broadcasting.default' => 'null']);
 
 $monthStart = Carbon::now()->startOfMonth();
 $monthDate = $monthStart->toDateString();
@@ -94,18 +97,20 @@ $previousMonthDate = $monthStart->copy()->subMonth()->toDateString();
 $qaHolidayDate = $monthStart->copy()->addDays(16)->toDateString();
 $qaStamp = Carbon::now()->format('Ymd');
 
-$adminUser = User::query()->where('email', 'admin@finerp.local')->firstOrFail();
-$sadiaUser = User::query()->where('email', 'sadia@finerp.local')->firstOrFail();
+qaLog('Preparing matrix users.');
+$adminUser = User::query()->where('email', 'admin@auxfin.local')->firstOrFail();
+$sadiaUser = User::query()->where('email', 'sadia@auxfin.local')->firstOrFail();
 $sadiaEmployee = $sadiaUser->employee;
 qaAssert($sadiaEmployee !== null, 'BOOT-001', 'Seeded employee Sadia must exist.');
 
+qaLog('Preparing HR fixtures.');
 $qaDepartment = Department::query()->updateOrCreate(
     ['name' => 'QA Matrix Department'],
     ['head_id' => $sadiaEmployee->id]
 );
 
 $qaUser = User::query()->updateOrCreate(
-    ['email' => 'qa.matrix.employee@finerp.local'],
+    ['email' => 'qa.matrix.employee@auxfin.local'],
     [
         'name' => 'QA Matrix Employee',
         'passkey' => 'QAMatrix#2026',
@@ -203,6 +208,7 @@ Leave::query()->updateOrCreate(
     ]
 );
 
+qaLog('Preparing loan fixtures.');
 $qaLoanPending = Loan::query()->updateOrCreate(
     ['loan_reference' => 'LON-QA-PEND-'.$qaStamp],
     [
@@ -248,6 +254,7 @@ Loan::query()->updateOrCreate(
     ]
 );
 
+qaLog('Preparing payroll fixtures.');
 $qaSalaryCurrent = SalaryMonth::query()->updateOrCreate(
     ['employee_id' => $qaEmployee->id, 'month' => $monthDate],
     [
@@ -339,6 +346,7 @@ SalaryMonth::query()->updateOrCreate(
     ]
 );
 
+qaLog('Preparing message fixtures.');
 $qaAdminMessage = EmployeeMessage::query()->updateOrCreate(
     ['employee_id' => $qaEmployee->id, 'subject' => 'QA Matrix Admin Message'],
     [
@@ -361,10 +369,11 @@ $qaEmployeeMessage = EmployeeMessage::query()->updateOrCreate(
     ]
 );
 
+qaLog('Preparing finance fixtures.');
 $qaClient = Client::query()->updateOrCreate(
     ['name' => 'QA Matrix Client'],
     [
-        'email' => 'qa.client@finerp.local',
+        'email' => 'qa.client@auxfin.local',
         'phone' => '+8801700000000',
         'contact_person' => 'QA Contact',
         'address' => 'Dhaka',
@@ -421,6 +430,7 @@ Invoice::query()->updateOrCreate(
     ]
 );
 
+qaLog('Preparing operations fixtures.');
 Expense::query()->updateOrCreate(
     ['description' => 'QA Matrix Recurring Infra'],
     [
@@ -474,6 +484,7 @@ $qaAsset = Asset::query()->updateOrCreate(
     ]
 );
 
+qaLog('Preparing snapshot fixtures.');
 CompanySnapshot::query()->updateOrCreate(
     ['snapshot_month' => $monthStart->copy()->subMonth()->toDateString()],
     [
@@ -507,7 +518,7 @@ CompanySnapshot::query()->updateOrCreate(
 qaLog('Fixtures prepared successfully.');
 
 $adminLogin = qaApi('POST', '/api/auth/login', null, [
-    'email' => 'admin@finerp.local',
+    'email' => 'admin@auxfin.local',
     'passkey' => 'Admin#2026',
 ]);
 qaAssert($adminLogin['status'] === 200, 'AUTH-001', 'Admin login failed.', $adminLogin['raw']);
@@ -515,7 +526,7 @@ qaAssert(! empty($adminLogin['json']['token'] ?? null), 'AUTH-001', 'Admin token
 $adminToken = (string) $adminLogin['json']['token'];
 
 $employeeLogin = qaApi('POST', '/api/auth/login', null, [
-    'email' => 'sadia@finerp.local',
+    'email' => 'sadia@auxfin.local',
     'passkey' => 'Sadia#2026',
 ]);
 qaAssert($employeeLogin['status'] === 200, 'AUTH-002', 'Employee login failed.', $employeeLogin['raw']);
@@ -523,7 +534,7 @@ qaAssert(! empty($employeeLogin['json']['token'] ?? null), 'AUTH-002', 'Employee
 $employeeToken = (string) $employeeLogin['json']['token'];
 
 $invalidLogin = qaApi('POST', '/api/auth/login', null, [
-    'email' => 'admin@finerp.local',
+    'email' => 'admin@auxfin.local',
     'passkey' => 'Wrong#Pass',
 ]);
 qaAssert($invalidLogin['status'] === 422, 'AUTH-003', 'Invalid login should fail with 422.', $invalidLogin['raw']);
@@ -542,7 +553,7 @@ qaAssert(qaFind($deptRows, fn (array $row): bool => ($row['name'] ?? '') === 'QA
 $employeeList = qaApi('GET', '/api/admin/employees?search=qa.matrix.employee', $adminToken);
 qaAssert($employeeList['status'] === 200, 'EMP-001', 'Employee list failed.', $employeeList['raw']);
 $employeeRows = $employeeList['json']['data'] ?? [];
-$employeeRow = qaFind($employeeRows, fn (array $row): bool => ($row['user']['email'] ?? '') === 'qa.matrix.employee@finerp.local');
+$employeeRow = qaFind($employeeRows, fn (array $row): bool => ($row['user']['email'] ?? '') === 'qa.matrix.employee@auxfin.local');
 qaAssert($employeeRow !== null, 'EMP-001', 'QA employee missing from employee list.');
 
 $employeeShow = qaApi('GET', '/api/admin/employees/'.$qaEmployee->id, $adminToken);
@@ -596,12 +607,12 @@ qaAssert($loanDeleteBlocked['status'] === 422, 'LOAN-003', 'Approved loan delete
 
 $payrollMonth = qaApi('GET', '/api/admin/payroll/'.$monthDate, $adminToken);
 qaAssert($payrollMonth['status'] === 200, 'PAY-001', 'Payroll month fetch failed.', $payrollMonth['raw']);
-$payrollRows = $payrollMonth['json'] ?? [];
+$payrollRows = $payrollMonth['json']['data'] ?? [];
 qaAssert(qaFind($payrollRows, fn (array $row): bool => (int) ($row['id'] ?? 0) === (int) $qaSalaryCurrent->id) !== null, 'PAY-001', 'QA salary row missing from payroll month list.');
 
 $payslip = qaApi('GET', '/api/admin/payroll/'.$qaSalaryCurrent->id.'/payslip', $adminToken);
 qaAssert($payslip['status'] === 200, 'PAY-002', 'Admin payslip fetch failed.', $payslip['raw']);
-qaAssert(($payslip['json']['employee']['employee_code'] ?? '') === 'EMP-QA-9001', 'PAY-002', 'Payslip employee code mismatch.', $payslip['raw']);
+qaAssert(($payslip['json']['data']['employee']['employee_code'] ?? '') === 'EMP-QA-9001', 'PAY-002', 'Payslip employee code mismatch.', $payslip['raw']);
 
 $paidUpdateBlocked = qaApi('PUT', '/api/admin/payroll/'.$qaSalaryPaid->id, $adminToken, [
     'other_bonus' => 500,

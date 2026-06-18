@@ -257,9 +257,9 @@ import FunnelChart from '../../../components/charts/FunnelChart.vue';
 import ProgressBar from '../../../components/charts/ProgressBar.vue';
 import { FinanceService } from '../../../services/finance.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
-const toast = useToastStore();
+const toast = useToast();
 
 const kpis = ref({});
 const invoiceFunnel = ref([]);

@@ -108,14 +108,14 @@ import AppCard from '../../../components/ui/AppCard.vue';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner.vue';
 import StatusBadge from '../../../components/ui/StatusBadge.vue';
 import { PayrollService } from '../../../services/payroll.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { downloadPayslipPdf } from '../../../utils/payslip-pdf';
 import { formatCurrency, formatPercent, humanizeKey } from '../../../utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToastStore();
+const toast = useToast();
 
 const loading = ref(false);
 const errorMessage = ref('');

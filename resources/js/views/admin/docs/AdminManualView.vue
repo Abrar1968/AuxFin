@@ -301,7 +301,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { exportAdminManualPdf } from '../../../utils/report-pdf';
 import {
     adminManualAnalyticsPlaybook,
@@ -310,7 +310,7 @@ import {
     adminManualTitle,
 } from './admin-manual.data';
 
-const toast = useToastStore();
+const toast = useToast();
 
 const sections = adminManualSections;
 const equations = adminManualEquations;

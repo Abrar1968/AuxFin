@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Events\LeaveDecision;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\LeaveRequest;
 use App\Models\Leave;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class LeaveController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(\Illuminate\Http\Request $request): JsonResponse
     {
         $rows = Leave::query()
             ->with(['employee.user', 'employee.department', 'reviewer'])
@@ -32,17 +32,9 @@ class LeaveController extends Controller
         return response()->json($leave);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(LeaveRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id'],
-            'leave_type' => ['required', 'in:casual,sick,earned,unpaid'],
-            'from_date' => ['required', 'date'],
-            'to_date' => ['required', 'date', 'after_or_equal:from_date'],
-            'reason' => ['required', 'string', 'min:3'],
-            'status' => ['nullable', 'in:pending,approved,rejected'],
-            'admin_note' => ['nullable', 'string', 'required_if:status,rejected'],
-        ]);
+        $payload = $request->validated();
 
         $from = Carbon::parse($payload['from_date']);
         $to = Carbon::parse($payload['to_date']);
@@ -75,16 +67,9 @@ class LeaveController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(LeaveRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'leave_type' => ['sometimes', 'in:casual,sick,earned,unpaid'],
-            'from_date' => ['sometimes', 'date'],
-            'to_date' => ['sometimes', 'date'],
-            'reason' => ['sometimes', 'string', 'min:3'],
-            'status' => ['sometimes', 'in:pending,approved,rejected'],
-            'admin_note' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $leave = Leave::query()->findOrFail($id);
 
@@ -147,12 +132,9 @@ class LeaveController extends Controller
         ]);
     }
 
-    public function decision(Request $request, int $id): JsonResponse
+    public function decision(LeaveRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'status' => ['required', 'in:approved,rejected'],
-            'admin_note' => ['nullable', 'string', 'min:3', 'required_if:status,rejected'],
-        ]);
+        $payload = $request->validated();
 
         $leave = Leave::query()->findOrFail($id);
 

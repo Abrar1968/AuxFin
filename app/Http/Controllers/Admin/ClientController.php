@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ClientRequest;
 use App\Models\Client;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,15 +44,9 @@ class ClientController extends Controller
         return response()->json($rows);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(ClientRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:200'],
-            'email' => ['nullable', 'email', 'max:200'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string'],
-            'contact_person' => ['nullable', 'string', 'max:150'],
-        ]);
+        $payload = $request->validated();
 
         $client = Client::query()->create($payload);
 
@@ -75,15 +70,9 @@ class ClientController extends Controller
         return response()->json($client);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(ClientRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['sometimes', 'string', 'max:200'],
-            'email' => ['nullable', 'email', 'max:200'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string'],
-            'contact_person' => ['nullable', 'string', 'max:150'],
-        ]);
+        $payload = $request->validated();
 
         $client = Client::query()->findOrFail($id);
         $client->update($payload);

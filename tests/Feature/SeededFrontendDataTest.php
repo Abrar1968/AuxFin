@@ -22,7 +22,7 @@ test('admin frontend endpoints return populated seeded data', function () {
 
     $payroll = $this->getJson('/api/admin/payroll/'.now()->startOfMonth()->toDateString())
         ->assertOk()
-        ->json();
+        ->json('data');
     expect(count($payroll))->toBeGreaterThan(0);
 
     $messages = $this->getJson('/api/admin/messages')->assertOk()->json('data');

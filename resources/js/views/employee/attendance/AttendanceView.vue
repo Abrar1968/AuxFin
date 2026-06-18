@@ -44,12 +44,12 @@
 import { ref } from 'vue';
 import { AttendanceService } from '../../../services/attendance.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const month = ref(new Date().toISOString().slice(0, 10));
 const records = ref([]);
 const summary = ref({});
-const toast = useToastStore();
+const toast = useToast();
 
 async function load() {
     try {

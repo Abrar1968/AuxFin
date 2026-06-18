@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\ChangePasskeyRequest;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,12 +11,9 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'email' => ['required', 'email'],
-            'passkey' => ['required', 'string', 'min:6'],
-        ]);
+        $payload = $request->validated();
 
         $user = User::query()->with('employee')->where('email', $payload['email'])->first();
 
@@ -68,12 +67,9 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
-    public function changePasskey(Request $request): JsonResponse
+    public function changePasskey(ChangePasskeyRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'current_passkey' => ['required', 'string'],
-            'new_passkey' => ['required', 'string', 'min:8', 'max:20'],
-        ]);
+        $payload = $request->validated();
 
         $user = $request->user();
 

@@ -257,9 +257,9 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import AppModal from '../../../components/ui/AppModal.vue';
 import { FinanceService } from '../../../services/finance.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
-const toast = useToastStore();
+const toast = useToast();
 
 const month = ref(new Date().toISOString().slice(0, 10));
 const rows = ref([]);

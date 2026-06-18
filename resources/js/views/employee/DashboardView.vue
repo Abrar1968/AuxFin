@@ -69,10 +69,10 @@ import AppAlert from '../../components/ui/AppAlert.vue';
 import KpiCard from '../../components/ui/KpiCard.vue';
 import { EmployeeService } from '../../services/employee.service';
 import { getApiErrorMessage } from '../../utils/api-error';
-import { useToastStore } from '../../stores/toast.store';
+import { useToast } from '../../composables/useToast';
 
 const metrics = ref({});
-const toast = useToastStore();
+const toast = useToast();
 
 const attendance = computed(() => metrics.value.attendance_summary ?? {});
 const statusLabel = computed(() => String(metrics.value.current_month_status ?? 'pending').toUpperCase());

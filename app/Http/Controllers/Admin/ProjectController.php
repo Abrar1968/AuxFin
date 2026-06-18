@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ProjectRequest;
 use App\Models\Project;
 use App\Services\FinanceService;
 use Illuminate\Http\JsonResponse;
@@ -74,17 +75,9 @@ class ProjectController extends Controller
         return response()->json($rows);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(ProjectRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'client_id' => ['required', 'exists:clients,id'],
-            'name' => ['required', 'string', 'max:200'],
-            'description' => ['nullable', 'string'],
-            'contract_amount' => ['required', 'numeric', 'min:0'],
-            'status' => ['nullable', 'in:active,completed,on_hold,cancelled'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ]);
+        $payload = $request->validated();
 
         $project = Project::query()->create([
             ...$payload,
@@ -114,17 +107,9 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(ProjectRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'client_id' => ['sometimes', 'exists:clients,id'],
-            'name' => ['sometimes', 'string', 'max:200'],
-            'description' => ['nullable', 'string'],
-            'contract_amount' => ['sometimes', 'numeric', 'min:0'],
-            'status' => ['sometimes', 'in:active,completed,on_hold,cancelled'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ]);
+        $payload = $request->validated();
 
         $project = Project::query()->findOrFail($id);
         $project->update($payload);

@@ -34,11 +34,11 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { LoanService } from '../../../services/loan.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
 const router = useRouter();
-const toast = useToastStore();
+const toast = useToast();
 
 const maxAmount = ref(0);
 const policy = ref({

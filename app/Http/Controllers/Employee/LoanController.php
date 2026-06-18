@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Employee\LoanApplicationRequest;
 use App\Models\Loan;
 use App\Services\LoanService;
 use Illuminate\Http\JsonResponse;
@@ -66,16 +67,11 @@ class LoanController extends Controller
         ]);
     }
 
-    public function apply(Request $request): JsonResponse
+    public function apply(LoanApplicationRequest $request): JsonResponse
     {
         $employee = $request->user()->employee;
         abort_if(! $employee, 404, 'Employee profile not found.');
-
-        $payload = $request->validate([
-            'amount_requested' => ['required', 'numeric', 'min:1'],
-            'reason' => ['required', 'string', 'min:3'],
-            'preferred_repayment_months' => ['nullable', 'integer', 'between:1,12'],
-        ]);
+        $payload = $request->validated();
 
         $loan = $this->loanService->apply($employee, $payload);
 

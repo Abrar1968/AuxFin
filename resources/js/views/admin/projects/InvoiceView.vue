@@ -244,11 +244,11 @@ import { useRoute } from 'vue-router';
 import { FinanceService } from '../../../services/finance.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { exportInvoiceLedgerPdf, exportProjectPaymentRecordsPdf } from '../../../utils/report-pdf';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const route = useRoute();
 const projectId = Number(route.params.id);
-const toast = useToastStore();
+const toast = useToast();
 
 const project = ref(null);
 const summary = ref({});

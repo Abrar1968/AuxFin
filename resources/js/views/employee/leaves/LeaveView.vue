@@ -56,10 +56,10 @@
 import { onMounted, reactive, ref } from 'vue';
 import { LeaveService } from '../../../services/leave.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const rows = ref([]);
-const toast = useToastStore();
+const toast = useToast();
 const form = reactive({
     leave_type: '',
     from_date: '',

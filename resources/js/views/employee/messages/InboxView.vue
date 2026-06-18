@@ -125,12 +125,14 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { MessageService } from '../../../services/message.service';
-import { useAuthStore } from '../../../stores/auth.store';
-import { useToastStore } from '../../../stores/toast.store';
+import { useAuth } from '../../../composables/useAuth';
+import { useRealTime } from '../../../composables/useRealTime';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const auth = useAuthStore();
-const toast = useToastStore();
+const auth = useAuth();
+const toast = useToast();
+const { subscribeEmployeeEvents, unsubscribeCustomEmployee } = useRealTime();
 
 const status = ref('');
 const filterType = ref('');
@@ -158,23 +160,12 @@ const form = reactive({
     priority: 'normal',
 });
 
-let employeeChannel = null;
-
 onMounted(async () => {
     await load();
     subscribeRealTime();
 });
 
-onUnmounted(() => {
-    if (employeeChannel) {
-        employeeChannel.stopListening('.message.replied');
-        employeeChannel.stopListening('message.replied');
-        employeeChannel.stopListening('.message.resolved');
-        employeeChannel.stopListening('message.resolved');
-        employeeChannel.stopListening('.message.action_taken');
-        employeeChannel.stopListening('message.action_taken');
-    }
-});
+onUnmounted(unsubscribeCustomEmployee);
 
 async function load() {
     try {
@@ -242,47 +233,25 @@ async function markAllRead() {
 
 function subscribeRealTime() {
     const employeeId = auth.user?.employee?.id;
-    const echo = window.EchoMain || window.EchoChat || window.EchoNotifications || window.Echo;
 
-    if (!echo || !auth.token || !employeeId) {
+    if (!auth.token || !employeeId) {
         return;
     }
 
-    if (typeof window.configureEchoAuth === 'function') {
-        window.configureEchoAuth(auth.token);
-    }
-
-    employeeChannel = echo.private(`employee.${employeeId}`);
-
-    employeeChannel.listen('.message.replied', async () => {
-        toast.info('Admin replied to one of your messages.');
-        await load();
-    });
-
-    employeeChannel.listen('message.replied', async () => {
-        toast.info('Admin replied to one of your messages.');
-        await load();
-    });
-
-    employeeChannel.listen('.message.resolved', async () => {
-        toast.success('A message has been resolved.');
-        await load();
-    });
-
-    employeeChannel.listen('message.resolved', async () => {
-        toast.success('A message has been resolved.');
-        await load();
-    });
-
-    employeeChannel.listen('.message.action_taken', async () => {
-        toast.info('An action was taken on your message.');
-        await load();
-    });
-
-    employeeChannel.listen('message.action_taken', async () => {
-        toast.info('An action was taken on your message.');
-        await load();
-    });
+    subscribeEmployeeEvents(employeeId, {
+        'message.replied': async () => {
+            toast.info('Admin replied to one of your messages.');
+            await load();
+        },
+        'message.resolved': async () => {
+            toast.success('A message has been resolved.');
+            await load();
+        },
+        'message.action_taken': async () => {
+            toast.info('An action was taken on your message.');
+            await load();
+        },
+    }, auth.token);
 }
 
 function formatDateTime(value) {

@@ -188,7 +188,7 @@ import AppCard from '../../../components/ui/AppCard.vue';
 import AppInput from '../../../components/ui/AppInput.vue';
 import AppModal from '../../../components/ui/AppModal.vue';
 import AppSelect from '../../../components/ui/AppSelect.vue';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { EmployeeService } from '../../../services/employee.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import {
@@ -208,7 +208,7 @@ import {
 } from '../../../utils/validators';
 
 const router = useRouter();
-const toast = useToastStore();
+const toast = useToast();
 
 const loading = ref(false);
 const errorMessage = ref('');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AssetRequest;
 use App\Models\Asset;
 use App\Services\FinanceService;
 use Illuminate\Http\JsonResponse;
@@ -32,17 +33,9 @@ class AssetController extends Controller
         return response()->json($asset);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(AssetRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:200'],
-            'category' => ['required', 'string', 'max:100'],
-            'purchase_date' => ['required', 'date'],
-            'purchase_cost' => ['required', 'numeric', 'min:0.01'],
-            'useful_life_months' => ['required', 'integer', 'min:1'],
-            'current_book_value' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['nullable', 'in:active,disposed,fully_depreciated'],
-        ]);
+        $payload = $request->validated();
 
         $normalized = $this->financeService->normalizeAssetPayload($payload);
 
@@ -57,19 +50,10 @@ class AssetController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(AssetRequest $request, int $id): JsonResponse
     {
         $asset = Asset::query()->findOrFail($id);
-
-        $payload = $request->validate([
-            'name' => ['sometimes', 'string', 'max:200'],
-            'category' => ['sometimes', 'string', 'max:100'],
-            'purchase_date' => ['sometimes', 'date'],
-            'purchase_cost' => ['sometimes', 'numeric', 'min:0.01'],
-            'useful_life_months' => ['sometimes', 'integer', 'min:1'],
-            'current_book_value' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['sometimes', 'in:active,disposed,fully_depreciated'],
-        ]);
+        $payload = $request->validated();
 
         $normalized = $this->financeService->normalizeAssetPayload($payload, $asset);
         $asset->update($normalized);

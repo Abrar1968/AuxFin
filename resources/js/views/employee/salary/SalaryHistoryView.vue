@@ -69,7 +69,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { PayrollService } from '../../../services/payroll.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 import { formatCurrency, formatMonth } from '../../../utils/formatters';
 
@@ -86,7 +86,7 @@ const salaryPagination = ref({
     last_page: 1,
 });
 const router = useRouter();
-const toast = useToastStore();
+const toast = useToast();
 
 onMounted(async () => {
     await load();

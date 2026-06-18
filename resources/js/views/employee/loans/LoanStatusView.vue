@@ -68,17 +68,17 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { LoanService } from '../../../services/loan.service';
-import { useAuthStore } from '../../../stores/auth.store';
-import { useToastStore } from '../../../stores/toast.store';
+import { useAuth } from '../../../composables/useAuth';
+import { useRealTime } from '../../../composables/useRealTime';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const auth = useAuthStore();
-const toast = useToastStore();
+const auth = useAuth();
+const toast = useToast();
+const { subscribeEmployeeEvents, unsubscribeCustomEmployee } = useRealTime();
 const rows = ref([]);
 const selectedLoan = ref(null);
 const repaymentSchedule = ref([]);
-
-let employeeChannel = null;
 
 onMounted(load);
 onMounted(async () => {
@@ -93,14 +93,7 @@ onMounted(async () => {
     subscribeRealTime();
 });
 
-onUnmounted(() => {
-    if (employeeChannel) {
-        employeeChannel.stopListening('.loan.approved');
-        employeeChannel.stopListening('loan.approved');
-        employeeChannel.stopListening('.loan.rejected');
-        employeeChannel.stopListening('loan.rejected');
-    }
-});
+onUnmounted(unsubscribeCustomEmployee);
 
 async function load() {
     try {
@@ -123,35 +116,20 @@ async function openLoan(id) {
 
 function subscribeRealTime() {
     const employeeId = auth.user?.employee?.id;
-    if (!window.Echo || !auth.token || !employeeId) {
+    if (!auth.token || !employeeId) {
         return;
     }
 
-    window.Echo.connector.options.auth = {
-        headers: {
-            Authorization: `Bearer ${auth.token}`,
+    subscribeEmployeeEvents(employeeId, {
+        'loan.approved': async () => {
+            toast.success('Your loan has been approved.');
+            await load();
         },
-    };
-
-    employeeChannel = window.Echo.private(`employee.${employeeId}`);
-
-    employeeChannel.listen('.loan.approved', async () => {
-        toast.success('Your loan has been approved.');
-        await load();
-    });
-    employeeChannel.listen('loan.approved', async () => {
-        toast.success('Your loan has been approved.');
-        await load();
-    });
-
-    employeeChannel.listen('.loan.rejected', async () => {
-        toast.warning('Your loan request was rejected. Check details in loan status.');
-        await load();
-    });
-    employeeChannel.listen('loan.rejected', async () => {
-        toast.warning('Your loan request was rejected. Check details in loan status.');
-        await load();
-    });
+        'loan.rejected': async () => {
+            toast.warning('Your loan request was rejected. Check details in loan status.');
+            await load();
+        },
+    }, auth.token);
 }
 
 function number(v) {

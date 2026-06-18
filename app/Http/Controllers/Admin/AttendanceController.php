@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AttendanceRequest;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Services\PayrollService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
@@ -16,12 +16,9 @@ class AttendanceController extends Controller
     {
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(AttendanceRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id'],
-            'month' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $employee = Employee::query()->findOrFail($payload['employee_id']);
         $month = Carbon::parse((string) ($payload['month'] ?? now()->toDateString()))->startOfMonth();
@@ -41,17 +38,9 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function upsert(Request $request): JsonResponse
+    public function upsert(AttendanceRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id'],
-            'date' => ['required', 'date'],
-            'status' => ['required', 'in:present,absent,late,weekly_off,holiday'],
-            'check_in' => ['nullable', 'date_format:H:i'],
-            'check_out' => ['nullable', 'date_format:H:i'],
-            'is_late' => ['nullable', 'boolean'],
-            'late_minutes' => ['nullable', 'integer', 'min:0'],
-        ]);
+        $payload = $request->validated();
 
         $isLate = array_key_exists('is_late', $payload)
             ? (bool) $payload['is_late']

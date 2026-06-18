@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\InvoiceRequest;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Services\FinanceService;
@@ -30,20 +31,10 @@ class InvoiceController extends Controller
         return response()->json($rows);
     }
 
-    public function store(Request $request, int $projectId): JsonResponse
+    public function store(InvoiceRequest $request, int $projectId): JsonResponse
     {
         Project::query()->findOrFail($projectId);
-
-        $payload = $request->validate([
-            'invoice_number' => ['nullable', 'string', 'max:30', 'unique:invoices,invoice_number'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'invoice_date' => ['nullable', 'date'],
-            'due_date' => ['required', 'date'],
-            'status' => ['nullable', 'in:draft,sent,partial,paid,overdue'],
-            'partial_amount' => ['nullable', 'numeric', 'min:0'],
-            'paid_at' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         if (($payload['status'] ?? 'draft') === 'partial' && ! array_key_exists('partial_amount', $payload)) {
             return response()->json(['message' => 'partial_amount is required when status is partial.'], 422);
@@ -82,7 +73,7 @@ class InvoiceController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $projectId, int $id): JsonResponse
+    public function update(InvoiceRequest $request, int $projectId, int $id): JsonResponse
     {
         Project::query()->findOrFail($projectId);
 
@@ -90,13 +81,7 @@ class InvoiceController extends Controller
             ->where('project_id', $projectId)
             ->findOrFail($id);
 
-        $payload = $request->validate([
-            'invoice_number' => ['sometimes', 'string', 'max:30', 'unique:invoices,invoice_number,'.$invoice->id],
-            'amount' => ['sometimes', 'numeric', 'min:0.01'],
-            'invoice_date' => ['sometimes', 'date'],
-            'due_date' => ['sometimes', 'date'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $invoice->update($payload);
         $invoice = $this->financeService->syncInvoicePaymentState($invoice);
@@ -107,7 +92,7 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function transition(Request $request, int $projectId, int $id): JsonResponse
+    public function transition(InvoiceRequest $request, int $projectId, int $id): JsonResponse
     {
         Project::query()->findOrFail($projectId);
 
@@ -115,11 +100,7 @@ class InvoiceController extends Controller
             ->where('project_id', $projectId)
             ->findOrFail($id);
 
-        $payload = $request->validate([
-            'status' => ['required', 'in:draft,sent,partial,paid,overdue'],
-            'partial_amount' => ['nullable', 'numeric', 'gt:0'],
-            'paid_at' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         if ($payload['status'] === 'partial') {
             if (! array_key_exists('partial_amount', $payload)) {

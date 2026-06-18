@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Events\InsightStreamed;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReportRequest;
 use App\Services\ReportService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class ReportController extends Controller
@@ -15,14 +15,9 @@ class ReportController extends Controller
     {
     }
 
-    public function profitLoss(Request $request): JsonResponse
+    public function profitLoss(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'from_month' => ['nullable', 'date'],
-            'to_month' => ['nullable', 'date'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $from = $payload['from_month'] ?? null;
         $to = $payload['to_month'] ?? null;
@@ -56,14 +51,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function taxSummary(Request $request): JsonResponse
+    public function taxSummary(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'from_month' => ['nullable', 'date'],
-            'to_month' => ['nullable', 'date'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $from = $payload['from_month'] ?? null;
         $to = $payload['to_month'] ?? null;
@@ -98,13 +88,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function arAging(Request $request): JsonResponse
+    public function arAging(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'as_of' => ['nullable', 'date'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $asOf = $payload['as_of'] ?? null;
         $timeframe = $payload['timeframe'] ?? 'month';
@@ -136,13 +122,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function trialBalance(Request $request): JsonResponse
+    public function trialBalance(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'as_of' => ['nullable', 'date'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $asOf = $payload['as_of'] ?? null;
         $timeframe = $payload['timeframe'] ?? 'month';
@@ -174,13 +156,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function balanceSheet(Request $request): JsonResponse
+    public function balanceSheet(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'as_of' => ['nullable', 'date'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $asOf = $payload['as_of'] ?? null;
         $timeframe = $payload['timeframe'] ?? 'month';
@@ -213,14 +191,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function cashFlow(Request $request): JsonResponse
+    public function cashFlow(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'from_month' => ['nullable', 'date'],
-            'to_month' => ['nullable', 'date'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $from = $payload['from_month'] ?? null;
         $to = $payload['to_month'] ?? null;
@@ -254,18 +227,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function generalLedger(Request $request): JsonResponse
+    public function generalLedger(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'from_date' => ['nullable', 'date'],
-            'to_date' => ['nullable', 'date'],
-            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
-            'invoice_id' => ['nullable', 'integer', 'exists:invoices,id'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $fromDate = $payload['from_date'] ?? null;
         $toDate = $payload['to_date'] ?? null;
@@ -300,18 +264,9 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function paymentLedger(Request $request): JsonResponse
+    public function paymentLedger(ReportRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'from_date' => ['nullable', 'date'],
-            'to_date' => ['nullable', 'date'],
-            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
-            'invoice_id' => ['nullable', 'integer', 'exists:invoices,id'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'timeframe' => ['nullable', 'in:day,week,month,year'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
+        $payload = $request->validated();
 
         $fromDate = $payload['from_date'] ?? null;
         $toDate = $payload['to_date'] ?? null;

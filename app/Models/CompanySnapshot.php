@@ -9,8 +9,6 @@ class CompanySnapshot extends Model
 {
     use HasFactory;
 
-    public const UPDATED_AT = null;
-
     protected $fillable = [
         'snapshot_month',
         'total_revenue',

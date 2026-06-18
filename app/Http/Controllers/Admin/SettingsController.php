@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SettingsRequest;
 use App\Models\PublicHoliday;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
@@ -30,15 +31,9 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateGeneral(Request $request): JsonResponse
+    public function updateGeneral(SettingsRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'company_name' => ['required', 'string', 'max:200'],
-            'company_email' => ['required', 'email', 'max:200'],
-            'currency' => ['required', 'string', 'max:8'],
-            'timezone' => ['required', 'string', 'max:64'],
-            'available_cash' => ['required', 'numeric', 'min:0'],
-        ]);
+        $payload = $request->validated();
 
         Setting::query()->updateOrCreate(
             ['key' => 'general_settings'],
@@ -77,15 +72,9 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateLatePolicy(Request $request): JsonResponse
+    public function updateLatePolicy(SettingsRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'late_days_per_unit' => ['required', 'integer', 'min:1', 'max:10'],
-            'deduction_unit_type' => ['required', 'in:full_day,half_day'],
-            'grace_period_minutes' => ['required', 'integer', 'min:0', 'max:180'],
-            'office_start_time' => ['required', 'date_format:H:i'],
-            'carry_forward' => ['required', 'boolean'],
-        ]);
+        $payload = $request->validated();
 
         Setting::query()->updateOrCreate(
             ['key' => 'late_policy'],
@@ -133,11 +122,9 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateTaxPolicy(Request $request): JsonResponse
+    public function updateTaxPolicy(SettingsRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'corporate_tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
-        ]);
+        $payload = $request->validated();
 
         Setting::query()->updateOrCreate(
             ['key' => 'tax_policy'],
@@ -150,14 +137,9 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateLoanPolicy(Request $request): JsonResponse
+    public function updateLoanPolicy(SettingsRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'max_loan_multiplier' => ['required', 'integer', 'min:1', 'max:12'],
-            'max_repayment_months' => ['required', 'integer', 'min:1', 'max:60'],
-            'cooling_period_months' => ['required', 'integer', 'min:0', 'max:24'],
-            'concurrent_loans' => ['required', 'integer', 'min:1', 'max:3'],
-        ]);
+        $payload = $request->validated();
 
         Setting::query()->updateOrCreate(
             ['key' => 'loan_policy'],
@@ -179,13 +161,9 @@ class SettingsController extends Controller
         return response()->json($rows);
     }
 
-    public function createHoliday(Request $request): JsonResponse
+    public function createHoliday(SettingsRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:200'],
-            'date' => ['required', 'date', 'unique:public_holidays,date'],
-            'is_optional' => ['nullable', 'boolean'],
-        ]);
+        $payload = $request->validated();
 
         $holiday = PublicHoliday::query()->create([
             'name' => $payload['name'],

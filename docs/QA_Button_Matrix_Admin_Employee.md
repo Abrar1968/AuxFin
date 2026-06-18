@@ -79,3 +79,11 @@ Environment: <http://127.0.0.1:8000> (Laravel + Vue SPA)
 - Rerun covered core admin and employee sidebar routes plus docs print routes.
 - No fatal body markers were detected (`server error`, `whoops`, or `fatal error`).
 - No console-level error events were captured by the scripted sweep.
+
+## Payroll Timeout Disposition
+
+Resolution note: 2026-04-29
+
+- The `/admin/payroll` timeout row is retained above as historical traceability from the 2026-04-16 sweep.
+- Current documented disposition is PASS based on the latest rerun verification: 18/18 admin routes passed, 0 warnings, 0 failures.
+- Because the payroll endpoint was later updated to a paginated `{ data, meta, message }` response, `/admin/payroll` remains a required route in the next full button sweep to verify the frontend contract after remediation.

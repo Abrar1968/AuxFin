@@ -28,9 +28,9 @@
 </template>
 
 <script setup>
-import { useToastStore } from '../../stores/toast.store';
+import { useToast } from '../../composables/useToast';
 
-const toastStore = useToastStore();
+const toastStore = useToast();
 
 function colorClass(type) {
     return {

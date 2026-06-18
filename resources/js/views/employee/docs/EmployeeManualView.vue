@@ -165,11 +165,11 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { exportEmployeeManualPdf } from '../../../utils/report-pdf';
 import { employeeManualEquations, employeeManualSections, employeeManualTitle } from './employee-manual.data';
 
-const toast = useToastStore();
+const toast = useToast();
 
 const sections = employeeManualSections;
 const equations = employeeManualEquations;

@@ -76,10 +76,10 @@ import GaugeChart from '../../../components/charts/GaugeChart.vue';
 import LineChart from '../../../components/charts/LineChart.vue';
 import SkeletonLoader from '../../../components/layout/SkeletonLoader.vue';
 import { AnalyticsService } from '../../../services/analytics.service';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const toast = useToastStore();
+const toast = useToast();
 const loading = ref(false);
 const growth = ref({ velocity: {}, series: [] });
 const timeframe = ref('month');

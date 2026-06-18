@@ -10,7 +10,7 @@ export const usePayrollStore = defineStore('payroll', () => {
         loading.value = true;
         try {
             const response = await PayrollService.getMonth(month);
-            salaryMonths.value = response.data;
+            salaryMonths.value = response.data.data ?? response.data;
         } finally {
             loading.value = false;
         }

@@ -176,7 +176,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { SettingsService } from '../../../services/settings.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const general = reactive({
     company_name: 'AuxFin',
@@ -221,7 +221,7 @@ const holidayPagination = ref({
     total: 0,
     last_page: 1,
 });
-const toast = useToastStore();
+const toast = useToast();
 
 onMounted(async () => {
     await loadGeneral();

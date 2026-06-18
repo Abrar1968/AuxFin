@@ -3,6 +3,10 @@ import { useNotificationStore } from '../stores/notification.store';
 let adminChannel = null;
 let adminInsightsChannel = null;
 let employeeChannel = null;
+let customAdminChannel = null;
+let customEmployeeChannel = null;
+let customAdminEvents = [];
+let customEmployeeEvents = [];
 
 const ADMIN_EVENTS = [
     'loan.applied',
@@ -102,6 +106,62 @@ export function useRealTime() {
     function unsubscribeAll() {
         unsubscribeAdmin();
         unsubscribeEmployee();
+        unsubscribeCustomAdmin();
+        unsubscribeCustomEmployee();
+    }
+
+    function subscribeAdminEvents(handlers = {}, token = null) {
+        configureAuth(token);
+        unsubscribeCustomAdmin();
+
+        const echo = window.EchoMain || window.EchoChat || window.EchoNotifications || window.Echo;
+        if (!echo) {
+            return;
+        }
+
+        customAdminChannel = echo.private('admin-broadcast');
+        customAdminEvents = Object.keys(handlers);
+        Object.entries(handlers).forEach(([eventName, handler]) => {
+            bindHandler(customAdminChannel, eventName, handler);
+        });
+    }
+
+    function unsubscribeCustomAdmin() {
+        if (!customAdminChannel) {
+            return;
+        }
+
+        customAdminEvents.forEach((eventName) => unbind(customAdminChannel, eventName));
+        customAdminChannel = null;
+        customAdminEvents = [];
+    }
+
+    function subscribeEmployeeEvents(employeeId, handlers = {}, token = null) {
+        if (!employeeId) return;
+
+        configureAuth(token);
+        unsubscribeCustomEmployee();
+
+        const echo = window.EchoMain || window.EchoChat || window.EchoNotifications || window.Echo;
+        if (!echo) {
+            return;
+        }
+
+        customEmployeeChannel = echo.private(`employee.${employeeId}`);
+        customEmployeeEvents = Object.keys(handlers);
+        Object.entries(handlers).forEach(([eventName, handler]) => {
+            bindHandler(customEmployeeChannel, eventName, handler);
+        });
+    }
+
+    function unsubscribeCustomEmployee() {
+        if (!customEmployeeChannel) {
+            return;
+        }
+
+        customEmployeeEvents.forEach((eventName) => unbind(customEmployeeChannel, eventName));
+        customEmployeeChannel = null;
+        customEmployeeEvents = [];
     }
 
     function configureAuth(token = null) {
@@ -120,6 +180,12 @@ export function useRealTime() {
             });
     }
 
+    function bindHandler(channel, eventName, handler) {
+        channel
+            .listen(`.${eventName}`, handler)
+            .listen(eventName, handler);
+    }
+
     function unbind(channel, eventName) {
         channel.stopListening(`.${eventName}`);
         channel.stopListening(eventName);
@@ -128,8 +194,12 @@ export function useRealTime() {
     return {
         subscribeAdmin,
         subscribeEmployee,
+        subscribeAdminEvents,
+        subscribeEmployeeEvents,
         unsubscribeAdmin,
         unsubscribeEmployee,
+        unsubscribeCustomAdmin,
+        unsubscribeCustomEmployee,
         unsubscribeAll,
     };
 }

@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\DepartmentRequest;
 use App\Models\Department;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
@@ -25,12 +25,9 @@ class DepartmentController extends Controller
         return response()->json($rows);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(DepartmentRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:150', 'unique:departments,name'],
-            'head_id' => ['nullable', 'exists:employees,id'],
-        ]);
+        $payload = $request->validated();
 
         $department = Department::query()->create($payload);
 
@@ -53,19 +50,10 @@ class DepartmentController extends Controller
         return response()->json($department);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(DepartmentRequest $request, int $id): JsonResponse
     {
         $department = Department::query()->findOrFail($id);
-
-        $payload = $request->validate([
-            'name' => [
-                'sometimes',
-                'string',
-                'max:150',
-                Rule::unique('departments', 'name')->ignore($department->id),
-            ],
-            'head_id' => ['nullable', 'exists:employees,id'],
-        ]);
+        $payload = $request->validated();
 
         $department->update($payload);
 

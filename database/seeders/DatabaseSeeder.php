@@ -80,7 +80,11 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        // Intentionally do not seed demo domain data here.
-        // This seeder now only ensures the primary admin accounts exist.
+        $this->call([
+            DemoEmployeesSeeder::class,
+            Phase3DemoSeeder::class,
+            Phase4LoanDemoSeeder::class,
+            Phase5OperationsDemoSeeder::class,
+        ]);
     }
 }

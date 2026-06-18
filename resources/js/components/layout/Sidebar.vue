@@ -101,8 +101,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.store';
-import { useNotificationStore } from '../../stores/notification.store';
+import { useAuth } from '../../composables/useAuth';
+import { useNotifications } from '../../composables/useNotifications';
 
 defineEmits(['close']);
 
@@ -123,8 +123,8 @@ const props = defineProps({
 
 const route = useRoute();
 const router = useRouter();
-const auth = useAuthStore();
-const notifications = useNotificationStore();
+const auth = useAuth();
+const notifications = useNotifications();
 const sectionOrder = ref([]);
 const logoUrl = '/images/logo.jpg';
 
@@ -220,10 +220,6 @@ const orderedSections = computed(() => {
     return orderedKeys.map((key) => map.get(key)).filter(Boolean);
 });
 
-function sectionOrderStorageKey() {
-    return `auxfin_sidebar_section_order_${props.role}`;
-}
-
 function normalizeOrder(nextOrder, fallbackKeys) {
     const base = Array.isArray(nextOrder) ? nextOrder : [];
 
@@ -236,25 +232,10 @@ function normalizeOrder(nextOrder, fallbackKeys) {
 function loadOrderForRole() {
     const fallbackKeys = sections.value.map((section) => section.key);
 
-    try {
-        const raw = localStorage.getItem(sectionOrderStorageKey());
-        if (!raw) {
-            return fallbackKeys;
-        }
-
-        const parsed = JSON.parse(raw);
-        return normalizeOrder(parsed, fallbackKeys);
-    } catch {
-        return fallbackKeys;
-    }
+    return normalizeOrder(sectionOrder.value, fallbackKeys);
 }
 
 function persistOrderForRole() {
-    try {
-        localStorage.setItem(sectionOrderStorageKey(), JSON.stringify(sectionOrder.value));
-    } catch {
-        // Ignore storage errors in restricted browser contexts.
-    }
 }
 
 function moveSection(key, direction) {

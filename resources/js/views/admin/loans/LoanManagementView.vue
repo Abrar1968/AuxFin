@@ -306,14 +306,16 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import AppModal from '../../../components/ui/AppModal.vue';
 import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
-import { useAuthStore } from '../../../stores/auth.store';
-import { useToastStore } from '../../../stores/toast.store';
+import { useAuth } from '../../../composables/useAuth';
+import { useRealTime } from '../../../composables/useRealTime';
+import { useToast } from '../../../composables/useToast';
 import { EmployeeService } from '../../../services/employee.service';
 import { LoanService } from '../../../services/loan.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
 
-const auth = useAuthStore();
-const toast = useToastStore();
+const auth = useAuth();
+const toast = useToast();
+const { subscribeAdminEvents, unsubscribeCustomAdmin } = useRealTime();
 
 const status = ref('pending');
 const employees = ref([]);
@@ -361,20 +363,13 @@ const pendingCount = computed(() => rows.value.filter((loan) => String(loan.stat
 const totalApprovedAmount = computed(() => rows.value.reduce((sum, loan) => sum + Number(loan.amount_approved ?? 0), 0));
 const totalOutstandingAmount = computed(() => rows.value.reduce((sum, loan) => sum + Number(loan.amount_remaining ?? 0), 0));
 
-let adminChannel = null;
-
 onMounted(async () => {
     await loadEmployees();
     await load();
     subscribeRealTime();
 });
 
-onUnmounted(() => {
-    if (adminChannel) {
-        adminChannel.stopListening('.loan.applied');
-        adminChannel.stopListening('loan.applied');
-    }
-});
+onUnmounted(unsubscribeCustomAdmin);
 
 async function loadEmployees() {
     try {
@@ -552,27 +547,16 @@ async function confirmDeleteLoan() {
 }
 
 function subscribeRealTime() {
-    if (!window.Echo || !auth.token) {
+    if (!auth.token) {
         return;
     }
 
-    window.Echo.connector.options.auth = {
-        headers: {
-            Authorization: `Bearer ${auth.token}`,
+    subscribeAdminEvents({
+        'loan.applied': async () => {
+            toast.info('New loan application received in real time.');
+            await load();
         },
-    };
-
-    adminChannel = window.Echo.private('admin-broadcast');
-
-    adminChannel.listen('.loan.applied', async () => {
-        toast.info('New loan application received in real time.');
-        await load();
-    });
-
-    adminChannel.listen('loan.applied', async () => {
-        toast.info('New loan application received in real time.');
-        await load();
-    });
+    }, auth.token);
 }
 
 function number(v) {

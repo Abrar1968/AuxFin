@@ -129,7 +129,7 @@ import ConfirmModal from '../../../components/ui/ConfirmModal.vue';
 import { AttendanceService } from '../../../services/attendance.service';
 import { EmployeeService } from '../../../services/employee.service';
 import { getApiErrorMessage } from '../../../utils/api-error';
-import { useToastStore } from '../../../stores/toast.store';
+import { useToast } from '../../../composables/useToast';
 
 const employees = ref([]);
 const employeeId = ref('');
@@ -138,7 +138,7 @@ const records = ref([]);
 const summary = ref(null);
 const showDeleteModal = ref(false);
 const deleteRecordId = ref(null);
-const toast = useToastStore();
+const toast = useToast();
 const form = reactive({
     date: new Date().toISOString().slice(0, 10),
     status: 'present',

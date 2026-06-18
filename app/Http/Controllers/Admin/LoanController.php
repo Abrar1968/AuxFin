@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\LoanRequest;
 use App\Models\Employee;
 use App\Models\Loan;
 use App\Services\LoanService;
@@ -49,14 +50,9 @@ class LoanController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(LoanRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id'],
-            'amount_requested' => ['required', 'numeric', 'min:1'],
-            'reason' => ['required', 'string', 'min:3'],
-            'preferred_repayment_months' => ['nullable', 'integer', 'between:1,60'],
-        ]);
+        $payload = $request->validated();
 
         $employee = Employee::query()->findOrFail($payload['employee_id']);
         $loan = $this->loanService->apply($employee, $payload);
@@ -74,14 +70,9 @@ class LoanController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(LoanRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'amount_requested' => ['sometimes', 'numeric', 'min:1'],
-            'reason' => ['sometimes', 'string', 'min:3'],
-            'status' => ['sometimes', 'in:pending,rejected'],
-            'admin_note' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $loan = Loan::query()->withSum('repayments as total_repaid', 'amount_paid')->findOrFail($id);
 
@@ -143,14 +134,9 @@ class LoanController extends Controller
         ]);
     }
 
-    public function approve(Request $request, int $id): JsonResponse
+    public function approve(LoanRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'amount_approved' => ['required', 'numeric', 'min:1'],
-            'repayment_months' => ['required', 'integer', 'between:1,60'],
-            'start_month' => ['required', 'date'],
-            'admin_note' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $loan = Loan::query()->findOrFail($id);
         $loan = $this->loanService->approve($loan, $payload, $request->user());
@@ -161,11 +147,9 @@ class LoanController extends Controller
         ]);
     }
 
-    public function reject(Request $request, int $id): JsonResponse
+    public function reject(LoanRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'admin_note' => ['required', 'string', 'min:3'],
-        ]);
+        $payload = $request->validated();
 
         $loan = Loan::query()->findOrFail($id);
         $loan = $this->loanService->reject($loan, $payload['admin_note'], $request->user());

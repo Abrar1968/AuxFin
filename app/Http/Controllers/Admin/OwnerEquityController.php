@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\OwnerEquityRequest;
 use App\Models\BusinessOwner;
 use App\Models\OwnerEquityEntry;
 use Illuminate\Http\JsonResponse;
@@ -53,15 +54,9 @@ class OwnerEquityController extends Controller
         return response()->json($this->ownerPayload());
     }
 
-    public function storeOwner(Request $request): JsonResponse
+    public function storeOwner(OwnerEquityRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'ownership_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
-            'initial_investment' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $payload = $request->validated();
 
         $ownershipPercentage = round((float) $payload['ownership_percentage'], 2);
         $isActive = (bool) ($payload['is_active'] ?? true);
@@ -82,17 +77,10 @@ class OwnerEquityController extends Controller
         ], 201);
     }
 
-    public function updateOwner(Request $request, int $id): JsonResponse
+    public function updateOwner(OwnerEquityRequest $request, int $id): JsonResponse
     {
         $owner = BusinessOwner::query()->findOrFail($id);
-
-        $payload = $request->validate([
-            'name' => ['sometimes', 'string', 'max:120'],
-            'ownership_percentage' => ['sometimes', 'numeric', 'min:0', 'max:100'],
-            'initial_investment' => ['sometimes', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
+        $payload = $request->validated();
 
         $ownershipPercentage = array_key_exists('ownership_percentage', $payload)
             ? round((float) $payload['ownership_percentage'], 2)
@@ -145,15 +133,9 @@ class OwnerEquityController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(OwnerEquityRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'business_owner_id' => ['nullable', 'integer', 'exists:business_owners,id'],
-            'entry_date' => ['required', 'date'],
-            'entry_type' => ['required', 'in:capital_contribution,drawing'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $this->ensureOwnerRulesForEntry($payload['business_owner_id'] ?? null);
 
@@ -171,17 +153,10 @@ class OwnerEquityController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(OwnerEquityRequest $request, int $id): JsonResponse
     {
         $entry = OwnerEquityEntry::query()->findOrFail($id);
-
-        $payload = $request->validate([
-            'business_owner_id' => ['nullable', 'integer', 'exists:business_owners,id'],
-            'entry_date' => ['sometimes', 'date'],
-            'entry_type' => ['sometimes', 'in:capital_contribution,drawing'],
-            'amount' => ['sometimes', 'numeric', 'min:0.01'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $payload = $request->validated();
 
         $resolvedOwnerId = array_key_exists('business_owner_id', $payload)
             ? $payload['business_owner_id']

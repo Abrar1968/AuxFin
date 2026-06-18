@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Employee;
 
 use App\Events\LeaveApplied;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Employee\LeaveApplicationRequest;
 use App\Models\Leave;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -24,17 +25,11 @@ class LeaveController extends Controller
         return response()->json($rows);
     }
 
-    public function apply(Request $request): JsonResponse
+    public function apply(LeaveApplicationRequest $request): JsonResponse
     {
         $employee = $request->user()->employee;
         abort_if(! $employee, 404, 'Employee profile not found.');
-
-        $payload = $request->validate([
-            'leave_type' => ['required', 'in:casual,sick,earned,unpaid'],
-            'from_date' => ['required', 'date'],
-            'to_date' => ['required', 'date', 'after_or_equal:from_date'],
-            'reason' => ['required', 'string', 'min:3'],
-        ]);
+        $payload = $request->validated();
 
         $from = Carbon::parse($payload['from_date']);
         $to = Carbon::parse($payload['to_date']);

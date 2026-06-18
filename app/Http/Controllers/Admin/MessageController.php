@@ -6,6 +6,7 @@ use App\Events\MessageActionTaken;
 use App\Events\MessageReplied;
 use App\Events\MessageResolved;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\MessageRequest;
 use App\Models\AuditLog;
 use App\Models\Attendance;
 use App\Models\EmployeeMessage;
@@ -51,20 +52,9 @@ class MessageController extends Controller
         return response()->json($payload);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(MessageRequest $request): JsonResponse
     {
-        $payload = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id'],
-            'type' => ['required', 'in:late_appeal,deduction_dispute,leave_clarification,salary_query,loan_query,general_hr'],
-            'subject' => ['required', 'string', 'max:300'],
-            'body' => ['required', 'string', 'min:5'],
-            'reference_date' => ['nullable', 'date'],
-            'reference_month' => ['nullable', 'date'],
-            'priority' => ['nullable', 'in:normal,high'],
-            'status' => ['nullable', 'in:open,under_review,resolved,rejected'],
-            'admin_reply' => ['nullable', 'string', 'min:3'],
-            'action_taken' => ['nullable', 'in:none,deduction_reversed,mark_excused,salary_adjusted,noted'],
-        ]);
+        $payload = $request->validated();
 
         $status = $payload['status'] ?? 'open';
         $hasAdminReply = ! empty($payload['admin_reply']);
@@ -114,13 +104,9 @@ class MessageController extends Controller
         return response()->json($message->fresh()->load(['employee.user', 'employee.department', 'replier']));
     }
 
-    public function reply(Request $request, int $id): JsonResponse
+    public function reply(MessageRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'admin_reply' => ['required', 'string', 'min:3'],
-            'action_taken' => ['nullable', 'in:none,deduction_reversed,mark_excused,salary_adjusted,noted'],
-            'status' => ['nullable', 'in:under_review,resolved,rejected'],
-        ]);
+        $payload = $request->validated();
 
         $message = EmployeeMessage::query()->findOrFail($id);
 
@@ -182,11 +168,9 @@ class MessageController extends Controller
         return response()->json(['message' => 'Message resolved successfully.']);
     }
 
-    public function reject(Request $request, int $id): JsonResponse
+    public function reject(MessageRequest $request, int $id): JsonResponse
     {
-        $payload = $request->validate([
-            'reason' => ['required', 'string', 'min:3'],
-        ]);
+        $payload = $request->validated();
 
         $message = EmployeeMessage::query()->findOrFail($id);
 
